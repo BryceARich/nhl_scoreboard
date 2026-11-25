@@ -11,8 +11,7 @@ Encoding.default_external = Encoding::UTF_8
 # Finds issues that are ready to start, and talks to the project board.
 module ClaudeScripts
   PROJECT = "1" # project board number, under the repo owner (shared with sports_ingest)
-  # This repo is milestone C1 only; issues with any other build order are never started.
-  TITLE_RE = /\A\[C(1)-(\d+)\]\s*(.*)\z/
+  TITLE_RE = /\A\[C1-(\d+)\]\s*(.*)\z/
   # A blocker: "#12" in this repo, or "owner/repo#12" in another one.
   BLOCKER_RE = %r{([\w.-]+/[\w.-]+)?#(\d+)}
   # The repo is public, so anyone can open an issue or comment. Only text from people with a role
@@ -108,15 +107,14 @@ module ClaudeScripts
     TRUSTED_ASSOCIATIONS.include?(issue["association"])
   end
 
-  # Reads the build order from an issue title.
+  # Reads the C1 item number from an issue title.
   #
   # @param title [String] the issue title
-  # @return [Array(Integer, Integer), nil] milestone and item, or nil when it has none or isn't C1
+  # @return [Integer, nil] the item number, or nil when it isn't a C1 issue
   # @example
-  #   build_order("[C1-05] Goal ticker") # => [1, 5]
+  #   build_order("[C1-05] Goal ticker") # => 5
   def build_order(title)
-    m = TITLE_RE.match(title)
-    m && [m[1].to_i, m[2].to_i]
+    title[TITLE_RE, 1]&.to_i
   end
 
   # Formats an issue's build order.
@@ -126,7 +124,7 @@ module ClaudeScripts
   # @example
   #   label({"title" => "[C1-05] Goal ticker"}) # => "C1-05"
   def label(issue)
-    format("C%d-%02d", *build_order(issue["title"]))
+    format("C1-%02d", build_order(issue["title"]))
   end
 
   # Names the branch for an issue.
@@ -136,7 +134,7 @@ module ClaudeScripts
   # @example
   #   branch_name({"title" => "[C1-05] Goal ticker"}) # => "c1-05-goal-ticker"
   def branch_name(issue)
-    words = TITLE_RE.match(issue["title"])[3].downcase.gsub(/[^a-z0-9]+/, "-").gsub(/\A-+|-+\z/, "")
+    words = issue["title"][TITLE_RE, 2].downcase.gsub(/[^a-z0-9]+/, "-").gsub(/\A-+|-+\z/, "")
     "#{label(issue).downcase}-#{words}"[0, 40].sub(/-+\z/, "")
   end
 
