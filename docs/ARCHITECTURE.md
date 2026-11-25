@@ -36,6 +36,7 @@ The canvas is 128×32. The left 64 columns hold the logos, period, clock and sco
 | Path | Contents |
 |---|---|
 | `script/licensed-data-guard`, `script/lib/`, `.githooks/` | Licensed-data guard and its pre-commit hook |
+| `.claude/commands/`, `script/claude/` | `/spawn_unblocked`, `/work_issue` and their helpers |
 | `spec/` | RSpec specs |
 | `bin/setup` | Ruby, gems and hook |
 | `.github/` | Issue and PR templates; CI is pending (C1-08, #9) |

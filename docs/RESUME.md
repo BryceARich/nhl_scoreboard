@@ -9,7 +9,8 @@ _Last updated: 2026-11-24 (C1-00)._
 Milestone C1 Scoreboard: **C1-00** (this scaffold) is done; no app code yet. Next, in order:
 **C1-01** FFI binding (#2), **C1-02** fake canvas (#3), **C1-03** logos (#4). CI is **C1-08** (#9),
 not started; until then run specs and lint by hand. Check each issue's
-"Blocked by", which can name `sports_ingest` issues.
+"Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
+for you, and `/spawn_unblocked` starts sessions for the ready ones.
 
 ## Setup
 
