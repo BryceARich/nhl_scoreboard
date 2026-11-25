@@ -66,6 +66,11 @@ RSpec.describe ClaudeScripts do
         .to eq([%w[c1-01-ffi-c-api c1-08-ci-workflow], []])
     end
 
+    it "ignores milestones other than C1" do
+      expect(reasons(issue(2, "[C1-01] X"), issue(3, "[C2-01] Y"), issue(4, "[C10-01] Z"), issue(5, "[M1-01] W")))
+        .to eq([["c1-01-x"], []])
+    end
+
     it "skips issues from people with no role on the repo" do
       expect(reasons(issue(2, "[C1-01] X", association: "NONE")).last.first).to include("no role")
     end

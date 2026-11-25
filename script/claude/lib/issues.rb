@@ -11,7 +11,8 @@ Encoding.default_external = Encoding::UTF_8
 # Finds issues that are ready to start, and talks to the project board.
 module ClaudeScripts
   PROJECT = "1" # project board number, under the repo owner (shared with sports_ingest)
-  TITLE_RE = /\A\[C(\d+)-(\d+)\]\s*(.*)\z/
+  # This repo is milestone C1 only; issues with any other build order are never started.
+  TITLE_RE = /\A\[C(1)-(\d+)\]\s*(.*)\z/
   # A blocker: "#12" in this repo, or "owner/repo#12" in another one.
   BLOCKER_RE = %r{([\w.-]+/[\w.-]+)?#(\d+)}
   # The repo is public, so anyone can open an issue or comment. Only text from people with a role
@@ -110,7 +111,7 @@ module ClaudeScripts
   # Reads the build order from an issue title.
   #
   # @param title [String] the issue title
-  # @return [Array(Integer, Integer), nil] milestone and item, or nil when it has none
+  # @return [Array(Integer, Integer), nil] milestone and item, or nil when it has none or isn't C1
   # @example
   #   build_order("[C1-05] Goal ticker") # => [1, 5]
   def build_order(title)

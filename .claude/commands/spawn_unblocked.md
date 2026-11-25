@@ -1,5 +1,5 @@
 ---
-description: Start a Claude desktop app session (own worktree, Remote Control on) for each issue whose blockers have closed
+description: Start a Claude desktop app session (own worktree, Remote Control on) for each C1 issue whose blockers have closed
 model: claude-haiku-5-5
 argument-hint: "[max sessions, default 3] [--dry-run]"
 allowed-tools: Bash(script/claude/ready-issues:*), mcp__ccd_session__start_session, mcp__ccd_session_mgmt__set_remote_control

@@ -53,7 +53,7 @@ Two slash commands in `.claude/commands/` script this, with helpers in `script/c
 
 - **`/work_issue <N>`** takes one issue to an open PR, moving it on the "Sports Ingestion" board.
 - **`/spawn_unblocked [max] [--dry-run]`**, in the Claude desktop app, starts a session in its own
-  worktree for each issue whose blockers have closed, in this repo or `sports_ingest`. Starts at
+  worktree for each C1 issue whose blockers have closed, in this repo or `sports_ingest`. Starts at
   most 3 by default. `needs-decision` issues get Opus 5.5, the rest Sonnet 5.5.
 
 `script/claude/ready-issues --all` lists what's ready and why the rest isn't. All of it only trusts
