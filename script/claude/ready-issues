@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Lists C1 issues that are ready to start: all blockers closed (here and in other repos), not taken.
+# Each READY line ends with the model a session should use (see `model_for` in lib/issues.rb).
+#
+#   script/claude/ready-issues            # ready issues only
+#   script/claude/ready-issues --all      # also show skipped issues and why
+#   script/claude/ready-issues --check N  # exit 0 if issue N is C1, trusted and has no open blockers, else exit 1
+require_relative "lib/issues"
+include ClaudeScripts # rubocop:disable Style/MixinUsage -- standalone script
+
+if ARGV[0] == "--check"
+  n = Integer(ARGV[1] || abort("usage: ready-issues --check <issue number>"))
+  issues = all_issues
+  issue = issues.find { |i| i["number"] == n } || abort("issue ##{n} not found")
+  abort "##{n}: not a C1 issue" unless build_order(issue["title"])
+  abort "##{n}: opened by #{issue["author"]}, who has no role on the repo" unless trusted?(issue)
+  blockers = open_blockers(issue, issues.map { |i| [i["number"], i["state"]] }.to_h)
+  abort "##{n}: blocked by #{blockers.join(", ")}" unless blockers.empty?
+  puts "##{n}: no open blockers"
+  exit
+end
+
+ready, skipped = classify
+ready.each { |r| puts "READY  ##{r[:issue]["number"]}  #{label(r[:issue])}  #{r[:branch]}  #{model_for(r[:issue])}" }
+puts "(none ready)" if ready.empty?
+if ARGV.include?("--all")
+  skipped.each { |s| puts "skip   ##{s[:issue]["number"]}  #{label(s[:issue])}  #{s[:reason]}" }
+else
+  puts "#{skipped.size} skipped (--all to list)"
+end
