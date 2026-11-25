@@ -1,0 +1,15 @@
+.DS_Store
+/.bundle/
+/vendor/bundle/
+/tmp/
+/.yardoc/
+/doc/
+
+# Local config and secrets never get committed
+.env
+.env.*
+/mise.local.toml
+
+# Local data folders. Licensed data never enters git; the pre-commit hook still checks other paths.
+/data/
+/exports/
