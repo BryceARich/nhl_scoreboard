@@ -4,7 +4,7 @@ A live NHL scoreboard on LED matrix panels driven by a Raspberry Pi, written in 
 comes from the [sports_ingest](https://github.com/BryceARich/sports_ingest) gem. It replaces the
 Python scoreboard in NHL_Apps (`led_scoreboard.py`).
 
-> **Status:** docs and conventions only; there is no app to run yet.
+> **Status:** the matrix binding and a panel test (C1-01). There's no scoreboard yet.
 > See [`docs/RESUME.md`](docs/RESUME.md) for current status and the next issues.
 
 ## Docs

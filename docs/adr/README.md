@@ -15,3 +15,4 @@ didn't, and what follows.
 |---|---|---|
 | [0001](0001-licensed-data-guard.md) | Copy the licensed-data guard from `sports_ingest` | Proposed |
 | [0001](0001-small-docs-layout.md) | Keep docs small, with the README as an index | Proposed |
+| [0002](0002-ffi-to-librgbmatrix.md) | Bind librgbmatrix with Ruby FFI, loaded at runtime | Proposed |

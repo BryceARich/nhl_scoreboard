@@ -2,12 +2,13 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-24 (C1-08)._
+_Last updated: 2026-11-26 (C1-01)._
 
 ## Current status
 
-Milestone C1 Scoreboard: **C1-00** (this scaffold) and **C1-08** (CI, `.github/workflows/ci.yml`)
-are done; no app code yet. Next, in order: **C1-01** FFI binding (#2), **C1-02** fake canvas (#3),
+Milestone C1 Scoreboard: **C1-00** (scaffold) and **C1-08** (CI, `.github/workflows/ci.yml`) are
+done. **C1-01** (#2) adds the FFI binding and `bin/hello_panels`; its specs pass offline, and the
+panel check is waiting for the maintainer on the Pi. Next, in order: **C1-02** fake canvas (#3),
 **C1-03** logos (#4). CI runs the licensed-data guard and the specs and lint on every pull request
 and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
@@ -113,6 +114,12 @@ Panel test; a rotating square should cover both panels:
 
 ```bash
 sudo examples-api-use/demo -D0 --led-rows=32 --led-cols=32 --led-chain=4 --led-parallel=1 --led-gpio-mapping=regular --led-slowdown-gpio=2
+```
+
+Ruby's binding, same panels: `hello` for ten seconds (needs the font from the repo above):
+
+```bash
+sudo "$(mise which ruby)" bin/hello_panels ~/rpi-rgb-led-matrix/fonts/7x13.bdf
 ```
 
 ## Known gotchas
