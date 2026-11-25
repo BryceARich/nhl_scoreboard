@@ -2,7 +2,7 @@
 
 # Flags files that look like Evolving-Hockey or PuckPedia exports, or data derived from them,
 # so they never reach git (ADR 0001-licensed-data-guard). Used by script/licensed-data-guard, which the
-# pre-commit hook runs, and CI will (#9). Plain stdlib, compatible with macOS system Ruby (2.6), because git
+# pre-commit hook runs, and CI runs (#9). Plain stdlib, compatible with macOS system Ruby (2.6), because git
 # hooks may run outside mise.
 module LicensedDataGuard
   # Only data-like files are checked, so code and docs that name the sources stay allowed.

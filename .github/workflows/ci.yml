@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group: # ready if a merge queue is turned on
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # script/claude/* parses gh output with JSON.parse, which crashes when Ruby reads it as US-ASCII.
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+  licensed-data:
+    name: Licensed-data guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # --range reads every commit in the PR, not only the final tree
+      - name: Tracked files
+        run: ruby script/licensed-data-guard --all
+      - name: Every commit in the PR
+        if: ${{ github.event_name == 'pull_request' }}
+        run: ruby script/licensed-data-guard --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
+  specs-and-lint:
+    name: Specs and lint (Ubuntu ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version-file: .ruby-version
+          bundler-cache: true
+      - name: Specs
+        run: bundle exec rspec
+      - name: Lint
+        if: ${{ !cancelled() }}  # report lint even when specs fail
+        run: bundle exec standardrb

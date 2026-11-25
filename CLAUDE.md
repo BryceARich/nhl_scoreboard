@@ -82,4 +82,4 @@ git**: no exports, and nothing derived from them (caches, snapshots, real values
 
 - Keep data and caches outside the repo. This app needs neither source.
 - `script/licensed-data-guard` runs as a pre-commit hook (`bin/setup` turns it on). The
-  CI check is pending (#9), so nothing else catches a skipped hook. It is a heuristic: if a staged file looks like a real export, stop and say so.
+  CI runs the same guard on every pull request (`.github/workflows/ci.yml`), so a skipped hook is still caught there. It is a heuristic: if a staged file looks like a real export, stop and say so.
