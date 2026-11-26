@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Draws "hello" on the fake 128×32 canvas and shows it in the terminal, and optionally writes a
+# PNG. It needs no panels, librgbmatrix or root, so it runs on the Mac. docs/RESUME.md has the
+# command.
+#
+#   bin/fake_panels path/to/font.bdf
+#   bin/fake_panels path/to/font.bdf --png preview.png
+
+require "optparse"
+require_relative "../lib/nhl_scoreboard"
+
+options = {}
+OptionParser.new do |parser|
+  parser.banner = "usage: bin/fake_panels path/to/font.bdf [--png FILE]"
+  parser.on("--png FILE", "also write the frame as a PNG") { |file| options[:png] = file }
+end.parse!
+
+font_path = ARGV.fetch(0) { abort "usage: bin/fake_panels path/to/font.bdf [--png FILE]" }
+
+font = NhlScoreboard::BdfFont.load(font_path)
+matrix = NhlScoreboard::FakeMatrix.new
+canvas = matrix.offscreen_canvas
+canvas.fill(0, 0, 0)
+canvas.draw_text(font, 10, (canvas.height - font.height) / 2 + font.baseline, 255, 255, 255, "hello")
+matrix.swap_on_vsync(canvas)
+
+puts matrix.canvas.to_terminal
+File.binwrite(options[:png], matrix.canvas.to_png) if options[:png]

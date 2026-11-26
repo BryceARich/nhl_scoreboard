@@ -2,14 +2,15 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-26 (C1-01)._
+_Last updated: 2026-11-26 (C1-02)._
 
 ## Current status
 
 Milestone C1 Scoreboard: **C1-00** (scaffold) and **C1-08** (CI, `.github/workflows/ci.yml`) are
 done. **C1-01** (#2) adds the FFI binding and `bin/hello_panels`; its specs pass offline, and the
-panel check is waiting for the maintainer on the Pi. Next, in order: **C1-02** fake canvas (#3),
-**C1-03** logos (#4). CI runs the licensed-data guard and the specs and lint on every pull request
+panel check is waiting for the maintainer on the Pi. **C1-02** (#3) adds the fake canvas for the
+Mac; its specs pass, and `bin/fake_panels` is for a human to look at. Next, in order: **C1-03**
+logos (#4). CI runs the licensed-data guard and the specs and lint on every pull request
 and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
 for you, and `/spawn_unblocked` starts sessions for the ready ones.
@@ -50,8 +51,16 @@ C1-07 (#8) adds the Pi service. Until then, the panel test below is the end-to-e
 
 ### Fake canvas on the Mac
 
-Not built yet. C1-02 (#3) adds it (terminal blocks and PNG, no hardware or librgbmatrix needed)
-and must put its command here.
+`FakeMatrix` and `FakeCanvas` draw in memory with the same methods as the real ones, and show the
+frame in a terminal or as a PNG. No panels, librgbmatrix or root needed. Give it a BDF font from
+the repo above (the Mac copy works too):
+
+```bash
+script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/7x13.bdf --png preview.png
+```
+
+The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`
+needs librgbmatrix ([ADR 0003](adr/0003-pure-ruby-fake-canvas.md)).
 
 ## Hardware setup
 

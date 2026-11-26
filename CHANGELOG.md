@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Fake canvas for the Mac: `FakeMatrix` and `FakeCanvas` with the same methods as `Matrix` and
+  `Canvas`, drawing in memory. `FakeCanvas` shows a frame as terminal half-blocks or a PNG, and
+  `BdfFont` and `PngEncoder` are pure Ruby, so no librgbmatrix is needed. `bin/fake_panels` runs
+  it. See ADR 0003 (C1-02).
 - FFI binding to librgbmatrix's C API: `Matrix` (open, canvas, offscreen canvas, swap on vsync),
   `Canvas` (set pixel, fill, clear, draw text), `Font` (BDF), and `MatrixSettings` with the
   RESUME defaults (32 rows, 4 × 32 columns, `regular` mapping, GPIO slowdown 2). Plus
