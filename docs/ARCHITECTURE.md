@@ -39,6 +39,6 @@ The canvas is 128×32. The left 64 columns hold the logos, period, clock and sco
 | `.claude/commands/`, `script/claude/` | `/spawn_unblocked`, `/work_issue` and their helpers |
 | `spec/` | RSpec specs |
 | `bin/setup` | Ruby, gems and hook |
-| `.github/` | Issue and PR templates; CI is pending (C1-08, #9) |
+| `.github/` | Issue and PR templates; `workflows/ci.yml` (licensed-data guard, specs and lint) |
 
 App paths are added here by the issues that create them.

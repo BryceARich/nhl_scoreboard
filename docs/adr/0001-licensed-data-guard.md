@@ -13,7 +13,7 @@ hook, before any bundle is installed and on macOS system Ruby.
 ## Decision
 
 We will copy the guard (stdlib Ruby script, `core.hooksPath` hook and spec), with
-the CI job following in #9. The one
+a CI job that runs it over tracked files and every commit in a pull request (#9). The one
 change: no path is exempt here, because this app has no fixtures for those sources.
 
 ## Alternatives considered
@@ -27,5 +27,5 @@ change: no path is exempt here, because this app has no fixtures for those sourc
 ## Consequences
 
 - Pattern fixes in `sports_ingest` must be copied here by hand.
-- It stays a heuristic, and `--no-verify` skips the hook. Until CI lands
-  (#9) nothing else blocks a commit; run `script/licensed-data-guard --all` in review.
+- It stays a heuristic, and `--no-verify` skips the hook. CI (#9) checks every pull request
+  again, so a skipped hook still fails the PR.

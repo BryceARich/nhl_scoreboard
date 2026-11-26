@@ -14,3 +14,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Claude contributes as BryceAIRich: rules in `CLAUDE.md`, setup in `docs/BOT_ACCOUNT.md` (C1-00).
 - `/spawn_unblocked` and `/work_issue` commands with `script/claude/` helpers, adapted from
   `sports_ingest`, for C1 issues only, checking blockers in other repos too (tooling).
+- CI workflow (`.github/workflows/ci.yml`): the licensed-data guard over tracked files and every
+  commit in a pull request, and specs and `standardrb` on Ubuntu ARM64 with the Ruby from
+  `.ruby-version`, on pull requests and on `main` (C1-08).
