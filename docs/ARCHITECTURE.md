@@ -2,8 +2,8 @@
 
 How the scoreboard is put together. Decisions are in [`adr/`](adr/README.md).
 
-> **Status:** written in C1-00, before any app code. This is the plan the C1 issues build toward.
-> When code lands and differs, update this file in the same PR.
+> **Status:** written in C1-00. C1-01 added the matrix layer and its `lib/` paths; the rest is still
+> plan. When code lands and differs, update this file in the same PR.
 
 ## Data flow
 
@@ -39,6 +39,8 @@ The canvas is 128×32. The left 64 columns hold the logos, period, clock and sco
 | `.claude/commands/`, `script/claude/` | `/spawn_unblocked`, `/work_issue` and their helpers |
 | `spec/` | RSpec specs |
 | `bin/setup` | Ruby, gems and hook |
+| `bin/hello_panels` | Draws "hello" on the panels (C1-01) |
+| `lib/nhl_scoreboard/` | `Matrix`, `Canvas`, `Font`, `MatrixSettings` (C1-01); `native.rb` and `native/` are the only C binding ([ADR 0002](adr/0002-ffi-to-librgbmatrix.md)) |
 | `.github/` | Issue and PR templates; `workflows/ci.yml` (licensed-data guard, specs and lint) |
 
 App paths are added here by the issues that create them.

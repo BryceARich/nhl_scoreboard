@@ -7,6 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- FFI binding to librgbmatrix's C API: `Matrix` (open, canvas, offscreen canvas, swap on vsync),
+  `Canvas` (set pixel, fill, clear, draw text), `Font` (BDF), and `MatrixSettings` with the
+  RESUME defaults (32 rows, 4 × 32 columns, `regular` mapping, GPIO slowdown 2). Plus
+  `bin/hello_panels` for the panel check. See ADR 0002 (C1-01).
 - Docs and conventions scaffold: README, `CLAUDE.md`, `docs/RESUME.md` (with hardware setup),
   `docs/ARCHITECTURE.md`, `docs/adr/`, and issue and PR templates (C1-00).
 - Licensed-data guard from `sports_ingest`, as a pre-commit hook, with its spec and
