@@ -18,3 +18,4 @@ didn't, and what follows.
 | [0002](0002-ffi-to-librgbmatrix.md) | Bind librgbmatrix with Ruby FFI, loaded at runtime | Proposed |
 | [0003](0003-pure-ruby-fake-canvas.md) | Draw the Mac preview in pure Ruby, with no new gems | Proposed |
 | [0004](0004-ppm-logos-presized.md) | Pre-size the team logos to 20×20 and read P6 PPM in pure Ruby | Proposed |
+| [0005](0005-layout-reads-game-state-by-duck-type.md) | Draw the scoreboard from the game state by its methods, without the sports_ingest gem | Proposed |

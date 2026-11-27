@@ -1,58 +1,31 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Draws a frame on the fake panels, the Mac stand-in for the real matrix. It needs no panels,
-# librgbmatrix or root. Without --serve it prints the frame in the terminal (and can write a PNG).
-# With --serve it shows the frame in a browser, and --countdown updates the clock every second.
-# docs/RESUME.md has the commands.
+# Draws on the fake panels, the Mac stand-in for the real matrix. It needs no panels, librgbmatrix
+# or root. Without --serve it prints the frame in the terminal (and can write a PNG). With --serve
+# it shows the frame in a browser. docs/RESUME.md has the commands.
+#
+# --frame scoreboard draws a game state (--state, a JSON file; default assets/demo_game.json). A
+# demo (--demo) plays that state out over time in the browser: countdown counts the clock down,
+# home-logos cycles the home team through every logo.
 #
 #   bin/fake_panels path/to/font.bdf
 #   bin/fake_panels path/to/font.bdf --png preview.png --scale 8
 #   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080
-#   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --countdown 10
+#   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --state my_game.json --serve 8080
+#   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --demo countdown
+#   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --demo home-logos
 
 require "optparse"
 require_relative "../lib/nhl_scoreboard"
 
-# The old NHL_Apps/led_scoreboard.py layout: logos are 20×20 at (0, 2) and (44, 2), and the period,
-# clock and score sit at x=24 on baselines 6, 13 and 20 (clock 5 px left). Each logo slot takes its
-# logo when given (C1-03); an empty slot is a grey placeholder.
-#
-# @param matrix [NhlScoreboard::FakeMatrix] the matrix to draw on.
-# @param font [NhlScoreboard::BdfFont] the font for the text.
-# @param clock [String] the clock text to show.
-# @param left_logo [NhlScoreboard::PpmImage, nil] the logo for the left 20×20 slot.
-# @param right_logo [NhlScoreboard::PpmImage, nil] the logo for the right 20×20 slot.
-# @return [NhlScoreboard::FakeCanvas] the canvas now showing, which the matrix has swapped in.
-def draw_scoreboard(matrix, font, clock, left_logo: nil, right_logo: nil)
-  canvas = matrix.offscreen_canvas
-  canvas.fill(0, 0, 0)
-  [[0, left_logo], [44, right_logo]].each do |logo_x, logo|
-    if logo
-      logo.draw(canvas, logo_x, 2)
-      next
-    end
-    20.times do |dy|
-      20.times do |dx|
-        edge = dx.zero? || dy.zero? || dx == 19 || dy == 19
-        canvas.set_pixel(logo_x + dx, 2 + dy, *(edge ? [90, 90, 90] : [30, 30, 30]))
-      end
-    end
-  end
-  canvas.draw_text(font, 24, 6, 255, 255, 255, "1ST")
-  canvas.draw_text(font, 19, 13, 255, 255, 255, clock)
-  canvas.draw_text(font, 24, 20, 255, 255, 255, "10-0")
-  matrix.swap_on_vsync(canvas)
-  matrix.canvas
-end
+DEFAULT_STATE = File.expand_path("../assets/demo_game.json", __dir__)
 
-# Formats seconds as the clock does, `M:SS`.
-#
-# @param seconds [Integer] seconds remaining, 0 or more.
-# @return [String] for example "1:05".
-def clock_text(seconds)
-  format("%d:%02d", seconds / 60, seconds % 60)
-end
+# Each demo turns the state into a sequence of states, by name.
+DEMOS = {
+  "countdown" => NhlScoreboard::GameSequence.method(:countdown),
+  "home-logos" => NhlScoreboard::GameSequence.method(:cycle_home_logos)
+}.freeze
 
 options = {rows: 32, cols: 32, chain: 4, frame: "hello"}
 parser = OptionParser.new do |opts|
@@ -62,37 +35,20 @@ parser = OptionParser.new do |opts|
   opts.on("--chain N", Integer, "units daisy-chained (default 4: 4 x 32 = 128 wide)") { |n| options[:chain] = n }
   opts.on("--png FILE", "also write the frame as a PNG") { |file| options[:png] = file }
   opts.on("--scale N", Integer, "PNG pixel size, e.g. 8 for big readable pixels (default 1)") { |n| options[:scale] = n }
-  opts.on("--frame NAME", %w[hello scoreboard], "hello (default) or scoreboard, the old led_scoreboard.py layout") { |name| options[:frame] = name }
+  opts.on("--frame NAME", %w[hello scoreboard], "hello (default) or scoreboard, the game-state layout") { |name| options[:frame] = name }
+  opts.on("--state FILE", "game state as JSON for --frame scoreboard (default #{DEFAULT_STATE})") { |file| options[:state] = file }
+  opts.on("--demo NAME", DEMOS.keys, "play the state out in the browser: #{DEMOS.keys.join(" or ")} (needs --serve and --frame scoreboard)") { |name| options[:demo] = name }
   opts.on("--serve PORT", Integer, "show the frame in a browser at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
-  opts.on("--countdown SECONDS", Integer, "count the clock down from SECONDS, once a second (needs --serve and --frame scoreboard)") { |s| options[:countdown] = s }
-  opts.on("--logo NAME", "draw this team logo from assets/logos in the left slot, e.g. avalanche (needs --frame scoreboard)") { |name| options[:logo] = name }
-  opts.on("--cycle-logos", "show each team logo in the left slot for one second, in turn, until Ctrl-C (needs --serve and --frame scoreboard)") { options[:cycle] = true }
 end
 parser.parse!
 
 font_path = ARGV.fetch(0) { abort parser.banner }
 
-if options[:countdown] && !(options[:serve] && options[:frame] == "scoreboard")
-  abort "--countdown needs --serve and --frame scoreboard"
+if options[:demo] && !(options[:serve] && options[:frame] == "scoreboard")
+  abort "--demo needs --serve and --frame scoreboard"
 end
-if options[:logo] && options[:frame] != "scoreboard"
-  abort "--logo needs --frame scoreboard"
-end
-if options[:cycle] && !(options[:serve] && options[:frame] == "scoreboard")
-  abort "--cycle-logos needs --serve and --frame scoreboard"
-end
-if options[:cycle] && (options[:countdown] || options[:logo])
-  abort "--cycle-logos can't be combined with --countdown or --logo"
-end
-
-left_logo = nil
-right_logo = nil
-logos = NhlScoreboard::LogoLibrary.load
-if options[:logo]
-  left_logo = logos.fetch(options[:logo]) { abort "no logo named #{options[:logo]}; try one of: #{logos.keys.join(", ")}" }
-end
-if options[:logo] || options[:cycle]
-  right_logo = logos.fetch("goldenknights") { abort "no goldenknights logo in assets/logos" }
+if options[:state] && options[:frame] != "scoreboard"
+  abort "--state needs --frame scoreboard"
 end
 
 font = NhlScoreboard::BdfFont.load(font_path)
@@ -100,8 +56,13 @@ settings = NhlScoreboard::MatrixSettings.new(rows: options[:rows], cols: options
 matrix = NhlScoreboard::FakeMatrix.new(settings)
 
 if options[:frame] == "scoreboard"
-  first_clock = options[:countdown] ? clock_text(options[:countdown]) : "12:34"
-  canvas = draw_scoreboard(matrix, font, first_clock, left_logo: left_logo, right_logo: right_logo)
+  begin
+    state = NhlScoreboard::GameState.load(options[:state] || DEFAULT_STATE)
+  rescue NhlScoreboard::Error, Errno::ENOENT => e
+    abort e.message
+  end
+  display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load)
+  canvas = display.show(state)
 else
   canvas = matrix.offscreen_canvas
   canvas.fill(0, 0, 0)
@@ -112,30 +73,18 @@ end
 
 if options[:serve]
   # The browser page redraws from the PNG, so it defaults to 7 pixels per LED to fit a screen.
+  scale = options[:scale] || 7
   server = NhlScoreboard::PreviewServer.new(port: options[:serve])
-  server.publish(canvas, scale: options[:scale] || 7)
+  server.publish(canvas, scale: scale)
   listener = server.listen
 
-  if options[:cycle]
-    # Each logo stays for one second, then the next one; the thread runs until the process stops.
+  if options[:demo]
+    # Each state in the demo is shown for one second. The thread runs until the process stops.
+    frames = DEMOS.fetch(options[:demo]).call(state)
     Thread.new do
-      loop do
-        logos.each do |_name, logo|
-          draw_scoreboard(matrix, font, "12:34", left_logo: logo, right_logo: right_logo)
-          server.publish(matrix.canvas, scale: options[:scale] || 7)
-          sleep 1
-        end
-      end
-    end
-  end
-
-  if options[:countdown]
-    # The server blocks, so the clock ticks on its own thread; each tick publishes a new frame.
-    Thread.new do
-      options[:countdown].downto(0) do |remaining|
-        draw_scoreboard(matrix, font, clock_text(remaining), left_logo: left_logo, right_logo: right_logo) if remaining < options[:countdown]
-        server.publish(matrix.canvas, scale: options[:scale] || 7)
-        sleep 1 unless remaining.zero?
+      frames.each do |frame|
+        sleep 1
+        server.publish(display.show(frame), scale: scale)
       end
     end
   end

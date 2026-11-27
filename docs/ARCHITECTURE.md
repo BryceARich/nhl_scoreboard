@@ -41,6 +41,8 @@ The canvas is 128×32. The left 64 columns hold the logos, period, clock and sco
 | `bin/setup` | Ruby, gems and hook |
 | `bin/hello_panels` | Draws "hello" on the panels (C1-01) |
 | `bin/fake_panels` | Draws "hello" or the scoreboard frame on the fake canvas: terminal, PNG, or a browser page with `--serve` (C1-02) |
+| `lib/nhl_scoreboard/scoreboard_layout.rb`, `team_logos.rb` | `ScoreboardLayout` draws the left 64 columns from a game's state by its methods ([ADR 0005](adr/0005-layout-reads-game-state-by-duck-type.md)); `TeamLogos` maps tri-codes to logos (C1-04) |
+| `lib/nhl_scoreboard/game_state.rb`, `game_display.rb`, `game_sequence.rb` | `GameState` (JSON in, same readers as `GameScore`), `GameDisplay` (shows any state on a matrix), `GameSequence` (demos that play a state out: `countdown`, `cycle_home_logos`) (C1-04) |
 | `assets/logos/` | 34 team logos, 20×20 PPM, made by `script/import_logos` ([ADR 0004](adr/0004-ppm-logos-presized.md)) (C1-03) |
 | `lib/nhl_scoreboard/` | `Matrix`, `Canvas`, `Font`, `MatrixSettings` (C1-01); `native.rb` and `native/` are the only C binding ([ADR 0002](adr/0002-ffi-to-librgbmatrix.md)) |
 | `lib/nhl_scoreboard/` (fake) | `FakeMatrix`, `FakeCanvas`, `BdfFont`, `PngEncoder`, `PreviewServer`: pure Ruby, no C ([ADR 0003](adr/0003-pure-ruby-fake-canvas.md)) (C1-02) |
