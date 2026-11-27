@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Goal ticker (C1-05): `GoalTicker` scrolls the latest goal across the right 64 columns, from the
+  right edge, in the scoring team's colour (`TeamColors`, one primary colour per team). The
+  layout now clears only its left 64 columns, so the ticker's text can run under the logos and be
+  cleared again; see ADR 0006. `GameDisplay#show` takes `step:` and an optional `ticker:`.
+  `bin/fake_panels --demo ticker` shows it.
 - Scoreboard layout (C1-04): `ScoreboardLayout` draws the left 64 columns from a game's live
   state, with the home and away logos, the period, the clock and the score at the old
   `led_scoreboard.py` positions. It reads the game by its methods, so no new gem is needed; see ADR

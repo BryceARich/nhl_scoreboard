@@ -32,6 +32,10 @@ module NhlScoreboard
     CLOCK_Y = 13
     # @return [Integer] the baseline of the score.
     SCORE_Y = 20
+    # @return [Integer] the width of the left area the layout owns, in columns.
+    WIDTH = 64
+    # @return [Integer] the panel's height, in rows.
+    HEIGHT = 32
     # @return [Array<Integer>] the colour of all the text, `[r, g, b]`.
     TEXT_COLOR = [255, 255, 255].freeze
     # @return [Hash{Integer => String}] the first three periods' ordinals; later ones use {#ordinal}.
@@ -48,10 +52,11 @@ module NhlScoreboard
       @font = font
     end
 
-    # Clears the canvas to black, then draws one game's frame onto it. An empty logo slot is a grey
-    # placeholder box.
+    # Clears the left 64 columns to black, then draws one game's frame onto them. It leaves the
+    # right 64 columns alone, so the goal ticker's text can run under the logos and be cleared
+    # here (ADR 0006). An empty logo slot is a grey placeholder box.
     #
-    # @param canvas [Canvas, FakeCanvas] the canvas to draw on; it is cleared first.
+    # @param canvas [Canvas, FakeCanvas] the canvas to draw on.
     # @param game [#phase, #period, #period_type, #clock, #home_team, #away_team] the game's state.
     # @param home_logo [PpmImage, nil] the home team's logo, drawn in the left slot.
     # @param away_logo [PpmImage, nil] the away team's logo, drawn in the right slot.
@@ -59,7 +64,7 @@ module NhlScoreboard
     # @example
     #   layout.draw(canvas, game, home_logo: home, away_logo: nil)
     def draw(canvas, game, home_logo: nil, away_logo: nil)
-      canvas.fill(0, 0, 0)
+      clear_left(canvas)
       draw_logo(canvas, HOME_LOGO_X, home_logo)
       draw_logo(canvas, AWAY_LOGO_X, away_logo)
       canvas.draw_text(font, TEXT_X, ORDINAL_Y, *TEXT_COLOR, ordinal(game))
@@ -69,6 +74,16 @@ module NhlScoreboard
     end
 
     private
+
+    # Clears the left 64 columns, one pixel at a time, since the canvas can't clear part of itself.
+    #
+    # @param canvas [Canvas, FakeCanvas] the canvas to clear.
+    # @return [void]
+    def clear_left(canvas)
+      HEIGHT.times do |y|
+        WIDTH.times { |x| canvas.set_pixel(x, y, 0, 0, 0) }
+      end
+    end
 
     # The period text: the period's ordinal in regulation, `OT` or `SO` in extra time, `INT` between
     # periods, `FINAL` at the end, and blank before the game starts.
