@@ -12,9 +12,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `script/import_logos` from NHL_Apps. `bin/fake_panels --logo avalanche` draws one on the Mac.
   See ADR 0004.
 - Fake canvas for the Mac: `FakeMatrix` and `FakeCanvas` with the same methods as `Matrix` and
-  `Canvas`, drawing in memory. `FakeCanvas` shows a frame as terminal half-blocks or a PNG, and
-  `BdfFont` and `PngEncoder` are pure Ruby, so no librgbmatrix is needed. `bin/fake_panels` runs
-  it. See ADR 0003 (C1-02).
+  `Canvas`, drawing in memory. `FakeCanvas` shows a frame as terminal cells, one per LED, or a PNG
+  with a grid, and `BdfFont` and `PngEncoder` are pure Ruby, so no librgbmatrix is needed.
+  `PreviewServer` serves the frame to a browser window, with no gems. `bin/fake_panels` runs it,
+  with `--frame scoreboard` for the old layout and `--countdown` for a clock that counts down. See
+  ADR 0003 (C1-02).
 - FFI binding to librgbmatrix's C API: `Matrix` (open, canvas, offscreen canvas, swap on vsync),
   `Canvas` (set pixel, fill, clear, draw text), `Font` (BDF), and `MatrixSettings` with the
   RESUME defaults (32 rows, 4 × 32 columns, `regular` mapping, GPIO slowdown 2). Plus

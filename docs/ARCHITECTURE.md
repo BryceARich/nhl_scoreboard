@@ -14,7 +14,7 @@ flowchart LR
     logos["PPM logos (C1-03)"] --> layout
     layout --> canvas{{"Canvas interface"}}
     canvas --> real["Matrix canvas (C1-01)<br/>FFI to librgbmatrix, on the Pi"]
-    canvas --> fake["Fake canvas (C1-02)<br/>terminal blocks and PNG, on the Mac"]
+    canvas --> fake["Fake canvas (C1-02)<br/>terminal cells, PNG and a browser page, on the Mac"]
 ```
 
 | Layer | Responsibility | Must not |
@@ -40,10 +40,10 @@ The canvas is 128×32. The left 64 columns hold the logos, period, clock and sco
 | `spec/` | RSpec specs |
 | `bin/setup` | Ruby, gems and hook |
 | `bin/hello_panels` | Draws "hello" on the panels (C1-01) |
-| `bin/fake_panels` | Draws "hello" and/or a team logo (`--logo avalanche`) on the fake canvas for the terminal or a PNG (C1-02, C1-03) |
+| `bin/fake_panels` | Draws "hello" or the scoreboard frame on the fake canvas: terminal, PNG, or a browser page with `--serve` (C1-02) |
 | `assets/logos/` | 32 team logos, 20×20 PPM, made by `script/import_logos` ([ADR 0004](adr/0004-ppm-logos-presized.md)) (C1-03) |
 | `lib/nhl_scoreboard/` | `Matrix`, `Canvas`, `Font`, `MatrixSettings` (C1-01); `native.rb` and `native/` are the only C binding ([ADR 0002](adr/0002-ffi-to-librgbmatrix.md)) |
-| `lib/nhl_scoreboard/` (fake) | `FakeMatrix`, `FakeCanvas`, `BdfFont`, `PngEncoder`: pure Ruby, no C ([ADR 0003](adr/0003-pure-ruby-fake-canvas.md)) (C1-02) |
+| `lib/nhl_scoreboard/` (fake) | `FakeMatrix`, `FakeCanvas`, `BdfFont`, `PngEncoder`, `PreviewServer`: pure Ruby, no C ([ADR 0003](adr/0003-pure-ruby-fake-canvas.md)) (C1-02) |
 | `.github/` | Issue and PR templates; `workflows/ci.yml` (licensed-data guard, specs and lint) |
 
 App paths are added here by the issues that create them.

@@ -74,21 +74,21 @@ RSpec.describe NhlScoreboard::FakeCanvas do
   end
 
   describe "#to_terminal" do
-    it "draws each pair of rows as one line of half blocks, with colors for both halves" do
+    it "draws one two-space cell per LED, so each row of LEDs is its own line" do
       canvas.set_pixel(0, 0, 255, 0, 0)
-      canvas.set_pixel(0, 1, 0, 0, 255)
+      canvas.set_pixel(3, 1, 0, 0, 255)
       lines = canvas.to_terminal.split("\n")
 
-      expect(lines.size).to eq(1)
-      expect(lines.first).to start_with("\e[38;2;255;0;0m\e[48;2;0;0;255m▀")
-      expect(lines.first.scan("▀").size).to eq(4)
-      expect(lines.first).to end_with("\e[0m")
+      expect(lines.size).to eq(2)
+      expect(lines.first).to start_with("\e[48;2;255;0;0m  \e[48;2;0;0;0m  ")
+      expect(lines.last).to end_with("\e[48;2;0;0;255m  \e[0m")
+      expect(lines.first).not_to include("▀")
     end
 
-    it "uses a black bottom half when the height is odd" do
-      odd = described_class.new(width: 1, height: 1)
-      odd.fill(10, 20, 30)
-      expect(odd.to_terminal).to eq("\e[38;2;10;20;30m\e[48;2;0;0;0m▀\e[0m")
+    it "is one line per LED row, with no half blocks" do
+      tall = described_class.new(width: 3, height: 5)
+      expect(tall.to_terminal.split("\n").size).to eq(5)
+      expect(tall.to_terminal).not_to include("▀")
     end
   end
 
@@ -110,6 +110,39 @@ RSpec.describe NhlScoreboard::FakeCanvas do
       second_row = raw.byteslice(1 + 4 * 3 + 1, 3 * 4)
       expect(raw.bytesize).to eq(2 * (1 + 4 * 3))
       expect(second_row.byteslice(6, 3).unpack("C3")).to eq([12, 34, 56])
+    end
+
+    it "enlarges each LED to a scale-by-scale cell, with a grid line on its last row and column" do
+      canvas.fill(0, 0, 0)
+      canvas.set_pixel(1, 0, 9, 8, 7)
+      png = canvas.to_png(scale: 3)
+
+      width, height = png.byteslice(16, 8).unpack("NN")
+      expect([width, height]).to eq([12, 6])
+
+      idat_at = png.index("IDAT") - 4
+      raw = Zlib::Inflate.inflate(png.byteslice(idat_at + 8, png.byteslice(idat_at, 4).unpack1("N")))
+      # Output row 0 is filter byte + 12 pixels; pixel (1, 0) covers output columns 3..5, and its
+      # last column (5) is the grid line.
+      first_row = raw.byteslice(1, 12 * 3)
+      expect(first_row.byteslice(3 * 3, 3).unpack("C3")).to eq([9, 8, 7])
+      expect(first_row.byteslice(4 * 3, 3).unpack("C3")).to eq([9, 8, 7])
+      expect(first_row.byteslice(5 * 3, 3).unpack("C3")).to eq([0x28, 0x28, 0x28])
+      expect(first_row.byteslice(6 * 3, 3).unpack("C3")).to eq([0, 0, 0])
+    end
+
+    it "fills the whole cell when the grid is off" do
+      canvas.fill(0, 0, 0)
+      canvas.set_pixel(1, 0, 9, 8, 7)
+      png = canvas.to_png(scale: 3, grid: false)
+
+      idat_at = png.index("IDAT") - 4
+      raw = Zlib::Inflate.inflate(png.byteslice(idat_at + 8, png.byteslice(idat_at, 4).unpack1("N")))
+      expect(raw.byteslice(1 + (5 * 3), 3).unpack("C3")).to eq([9, 8, 7])
+    end
+
+    it "rejects a scale below 1" do
+      expect { canvas.to_png(scale: 0) }.to raise_error(NhlScoreboard::Error, /at least 1/)
     end
   end
 end

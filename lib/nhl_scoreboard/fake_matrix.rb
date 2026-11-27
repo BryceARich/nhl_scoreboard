@@ -7,7 +7,8 @@ require_relative "fake_canvas"
 module NhlScoreboard
   # An in-memory stand-in for {Matrix} on the Mac, with the same `canvas`, `offscreen_canvas`,
   # `swap_on_vsync` and `close`. Its canvases are {FakeCanvas}es, sized from the settings. Nothing
-  # is shown on a panel; read the frame with {FakeCanvas#to_terminal} or {FakeCanvas#to_png}.
+  # is shown on a panel. Read the frame with {FakeCanvas#to_terminal} or {FakeCanvas#to_png}, or
+  # show it in a browser with {PreviewServer}.
   #
   # @example
   #   matrix = NhlScoreboard::FakeMatrix.new

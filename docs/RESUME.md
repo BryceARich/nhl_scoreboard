@@ -52,17 +52,26 @@ C1-07 (#8) adds the Pi service. Until then, the panel test below is the end-to-e
 ### Fake canvas on the Mac
 
 `FakeMatrix` and `FakeCanvas` draw in memory with the same methods as the real ones, and show the
-frame in a terminal or as a PNG. No panels, librgbmatrix or root needed. Give it a BDF font from
+frame in a terminal, as a PNG, or in a browser page. No panels, librgbmatrix or root needed. Give it a BDF font from
 the repo above (the Mac copy works too):
 
 ```bash
 script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/7x13.bdf --png preview.png
 ```
 
-A team logo needs no font. The Avalanche, for example (any name in `assets/logos/` works):
+For a live window, serve the frame and open it in a browser (Ctrl-C stops it):
 
 ```bash
-script/claude/run bin/fake_panels --logo avalanche --png preview.png
+script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080
+```
+
+Then open http://127.0.0.1:8080. Add `--countdown 10` to count the clock down once a second.
+
+Add `--logo avalanche` to draw a team logo in the left 20×20 slot (any name in `assets/logos/`
+works; `--logo` needs `--frame scoreboard`):
+
+```bash
+script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --logo avalanche --serve 8080
 ```
 
 The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`
