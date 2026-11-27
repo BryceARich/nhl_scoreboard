@@ -37,4 +37,7 @@ committed assets use.
 
 - The logos are trademarks of their teams and the NHL. This repo commits them as NHL_Apps did;
   they are not Evolving-Hockey or PuckPedia data, so the licensed-data guard does not cover them.
+- **Transparency.** P6 has no alpha channel. A logo marks its transparent pixels with magenta
+  (255, 0, 255), `PpmImage::TRANSPARENT`, and `draw` skips them. No existing logo uses that colour.
+  `kraken` and `mammoth` were keyed from their RGBA sources, with alpha below 128 keyed out.
 - To change a logo, run `script/import_logos` again on the new 128×128 source and commit the output.

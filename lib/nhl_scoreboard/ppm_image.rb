@@ -14,6 +14,10 @@ module NhlScoreboard
   class PpmImage
     # Matches a P6 header: the magic, width, height and maxval, with `#` comments allowed between
     # fields. One whitespace byte follows maxval, and the pixel data starts after it.
+    # The colour that means "transparent". P6 has no alpha channel, so a logo keys out its
+    # transparent pixels to this colour, and {#draw} skips them. No logo uses it for art.
+    TRANSPARENT = [255, 0, 255].freeze
+
     HEADER = /\AP6\s+(?:#[^\n]*\n\s*)*(\d+)\s+(?:#[^\n]*\n\s*)*(\d+)\s+(?:#[^\n]*\n\s*)*(\d+)\s/
 
     # @return [Integer] the number of columns.
@@ -92,7 +96,8 @@ module NhlScoreboard
       @data.byteslice(offset, 3).bytes
     end
 
-    # Draws every pixel onto a canvas. The canvas clips anything outside its bounds.
+    # Draws every pixel onto a canvas, except {TRANSPARENT} pixels, which leave the canvas as it
+    # was. The canvas clips anything outside its bounds.
     #
     # @param canvas [FakeCanvas, Canvas] any object with `set_pixel(x, y, r, g, b)`.
     # @param x [Integer] the canvas column of the image's left edge.
@@ -103,8 +108,10 @@ module NhlScoreboard
     def draw(canvas, x, y)
       height.times do |row|
         width.times do |column|
-          red, green, blue = pixel(column, row)
-          canvas.set_pixel(x + column, y + row, red, green, blue)
+          color = pixel(column, row)
+          next if color == TRANSPARENT
+
+          canvas.set_pixel(x + column, y + row, *color)
         end
       end
       nil

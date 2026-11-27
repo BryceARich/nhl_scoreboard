@@ -64,6 +64,15 @@ RSpec.describe NhlScoreboard::PpmImage do
   end
 
   describe "#draw" do
+    it "leaves transparent pixels alone" do
+      canvas = NhlScoreboard::FakeCanvas.new(width: 4, height: 2)
+      canvas.set_pixel(1, 1, 9, 9, 9)
+      keyed = "P6\n2 1\n255\n\xFF\x00\xFF\x00\xFF\x00".b
+      described_class.parse(keyed).draw(canvas, 1, 1)
+      expect(canvas.pixel(1, 1)).to eq([9, 9, 9])
+      expect(canvas.pixel(2, 1)).to eq([0, 255, 0])
+    end
+
     it "puts every pixel on the canvas at the offset" do
       canvas = NhlScoreboard::FakeCanvas.new(width: 4, height: 2)
       described_class.parse(two_pixels).draw(canvas, 1, 1)
