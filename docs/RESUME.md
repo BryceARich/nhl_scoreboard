@@ -2,7 +2,7 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-27 (C1-10)._
+_Last updated: 2026-11-27 (C1-11)._
 
 ## Current status
 
@@ -14,7 +14,10 @@ logo loader; its 34 logos are pre-sized to 20×20 in `assets/logos/`. **C1-04** 
 `ScoreboardLayout`, which draws the left 64 columns from a game's live state (ADR 0005); its specs
 pass, and `bin/fake_panels --frame scoreboard` is for a human to look at. **C1-05** (#6) adds the goal ticker, a band under the boards in rows 24 to 31 that scrolls the latest goal in the scoring team's colours across the whole grid (ADR 0006); its specs pass, and `--demo ticker` is for a human to look at. **C1-06** (#7) adds the main loop and
 `bin/scoreboard` (ADR 0007): the game picker, adaptive polling, and offline tolerance. Its specs pass
-offline; a run on the panels and through a full game are for the maintainer. Next, in order: **C1-07**.
+offline; a run on the panels and through a full game are for the maintainer. **C1-11** (#29) makes the
+loop follow the local day's games: each read is today's games, a final game leaves the rotation after one
+dwell, and an empty day blanks the boards (ADR 0029). Its specs pass offline; a real day on the panels is
+for the maintainer. Next, in order: **C1-07**.
 **C1-09** (#19) adds the replays: `GameRecording` reads a recording, `PlayByPlay` builds one from a finished game's
 play-by-play, `NightReplay` plays several games on one clock, and `bin/replay_night` runs a night through
 the main loop on the fake panels. Its specs pass on synthetic data. The gem is in the Gemfile (ADR 0007), but nothing in C1-09 fetches

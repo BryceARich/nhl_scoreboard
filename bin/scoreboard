@@ -2,7 +2,8 @@
 # frozen_string_literal: true
 
 # Runs the scoreboard on the panels, unattended (C1-06). The favorite team's game takes the first
-# board while it plays today, and the other boards rotate the rest, live games first. Each row of boards
+# board while it plays today, and the other boards rotate the rest, live games first. The day's games
+# are the local calendar day's, so the boards follow today's games as they start and finish. Each row of boards
 # has its own goal ticker under it. The boards default to a full grid of the panels; --boards and
 # --columns lay out a different number, such as 7 boards in 4 columns. Run it on the Pi as root,
 # since the library needs GPIO access; docs/RESUME.md has the setup.
@@ -45,7 +46,7 @@ begin
     display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load,
       ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
     loop_ = NhlScoreboard::MainLoop.new(
-      source: -> { SportsIngest::NHL.scores },
+      source: NhlScoreboard::DayScores.new(scores: ->(date) { SportsIngest::NHL.scores(date: date) }),
       display: display,
       picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards),
       poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for(game) }

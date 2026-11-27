@@ -8,6 +8,8 @@ module LoopFakes
   Team = Struct.new(:tri_code, :score)
   Game = Struct.new(:name, :state, :home_team, :away_team) do
     def live? = state == :live
+
+    def final? = state == :final
   end
 
   # Records each game shown, in order, and the scroll step it was shown with.
@@ -32,8 +34,12 @@ end
 RSpec.describe NhlScoreboard::MainLoop do
   let(:tick_seconds) { NhlScoreboard::MainLoop::SCROLL_SECONDS }
 
-  def game(name, state: :pre)
-    LoopFakes::Game.new(name: name, state: state, home_team: LoopFakes::Team.new("AAA", 0), away_team: LoopFakes::Team.new("BBB", 0))
+  def game(name, state: :pre, home_score: 0)
+    LoopFakes::Game.new(name: name, state: state, home_team: LoopFakes::Team.new("AAA", home_score), away_team: LoopFakes::Team.new("BBB", 0))
+  end
+
+  def names_shown(draw)
+    draw.map(&:name)
   end
 
   let(:display) { LoopFakes::RecordingDisplay.new }
@@ -136,12 +142,50 @@ RSpec.describe NhlScoreboard::MainLoop do
     expect(attempts).to eq(3)
   end
 
-  it "shows nothing, and checks again every dwell until the idle read is due" do
+  it "blanks the boards when the day has no games, and checks again every dwell until the idle read is due" do
     loop_ = build
     expect(loop_.tick(0)).to eq(tick_seconds)
-    expect(display.shown).to be_empty
+    expect(display.shown).to eq([[]])
     loop_.tick(300)
     expect(source_calls.size).to eq(2)
+  end
+
+  it "picks up a game that starts mid-run and shows its score change on the next read" do
+    loop_ = build
+    loop_.tick(0)
+    games.replace([game("live", state: :live, home_score: 0)])
+    loop_.tick(300)
+    games.replace([game("live", state: :live, home_score: 1)])
+    loop_.tick(310)
+    expect(display.shown.map { |boards| boards.map { |g| g.home_team.score } }).to eq([[], [0], [1]])
+  end
+
+  it "keeps a final game on the boards for one dwell after it is seen final, then drops it" do
+    games.replace([game("done", state: :final), game("pre", state: :pre)])
+    loop_ = build
+    loop_.tick(0)
+    expect(names_shown(display.shown.last)).to eq(%w[done pre])
+    loop_.tick(10)
+    expect(names_shown(display.shown.last)).to eq(%w[pre])
+    expect(source_calls.size).to eq(1)
+  end
+
+  it "blanks the boards once the last game's dwell is up, and treats a rematch on a later day as new" do
+    games.replace([game("done", state: :final)])
+    loop_ = build
+    loop_.tick(0)
+    expect(display.shown.last.size).to eq(1)
+    loop_.tick(10)
+    expect(display.shown.last).to eq([])
+    # The next day's read has no games yet, then the same two teams play again: the old final must
+    # not drop the new one at once.
+    games.replace([])
+    loop_.tick(300)
+    games.replace([game("again", state: :final)])
+    loop_.tick(600)
+    expect(names_shown(display.shown.last)).to eq(%w[again])
+    loop_.tick(610)
+    expect(display.shown.last).to eq([])
   end
 
   it "scrolls the ticker one column per tick, from the first tick" do
