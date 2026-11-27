@@ -5,14 +5,15 @@ module NhlScoreboard
   # `tri_code`, as on `SportsIngest::NHL::GameTeam`). Look a logo up with
   # `LogoLibrary.load.fetch(TeamLogos.name_for(code))`.
   #
-  # Thirty-two teams, one logo each. `mightyducks` and `coyotes` are the old logos and aren't here.
+  # Thirty-two teams, one primary logo each. Anaheim uses `mightyducks`; `ducks` and `coyotes` are
+  # kept as secondary logos for later and aren't mapped here.
   #
   # @example
   #   NhlScoreboard::TeamLogos.name_for("COL") # => "avalanche"
   module TeamLogos
     # @return [Hash{String => String}] tri-code to logo name, one per current team.
     FILES = {
-      "ANA" => "ducks", "BOS" => "bruins", "BUF" => "sabres", "CAR" => "hurricanes",
+      "ANA" => "mightyducks", "BOS" => "bruins", "BUF" => "sabres", "CAR" => "hurricanes",
       "CBJ" => "bluejackets", "CGY" => "flames", "CHI" => "blackhawks", "COL" => "avalanche",
       "DAL" => "stars", "DET" => "redwings", "EDM" => "oilers", "FLA" => "panthers",
       "LAK" => "kings", "MIN" => "wild", "MTL" => "canadiens", "NJD" => "devils",
