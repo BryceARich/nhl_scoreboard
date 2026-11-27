@@ -131,12 +131,12 @@ module NhlScoreboard
     # by the favorite team reads as a shout instead.
     #
     # @param goal [#tri_code, #scorer, #clock, #period] the goal.
-    # @return [String] for example "Goal (CHI) MacKinnon 03:21 P2", or "Avalanche GOAL!!! MacKinnon 03:21 P2" for the
+    # @return [String] for example "Goal (CHI) MacKinnon 03:21 P2", or "AVALANCHE GOAL!!! MacKinnon 03:21 P2" for the
     #   favorite.
     # @example
     #   ticker.text_for(goal) # => "Goal (COL) MacKinnon 03:21 P2"
     def text_for(goal)
-      return "#{TeamNames.name_for(goal.tri_code)} GOAL!!! #{goal.scorer} #{goal.clock} P#{goal.period}" if favorite_goal?(goal)
+      return "#{TeamNames.name_for(goal.tri_code).upcase} GOAL!!! #{goal.scorer} #{goal.clock} P#{goal.period}" if favorite_goal?(goal)
 
       "Goal (#{goal.tri_code}) #{goal.scorer} #{goal.clock} P#{goal.period}"
     end

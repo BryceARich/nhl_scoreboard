@@ -20,7 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Goal ticker text (C1-10): each goal scrolls as "Goal (TRI) scorer clock Pn". A goal by the
   favorite team (`--favorite`, `NHL_FAVORITE_TEAM`) scrolls as "{Team name} GOAL!!!", for example
-  "Avalanche GOAL!!! scorer clock Pn" (`TeamNames`). `GoalTicker` takes `favorite:`.
+  "AVALANCHE GOAL!!! scorer clock Pn" (`TeamNames`). `GoalTicker` takes `favorite:`.
 - Goal queue (C1-10): each goal scrolls once across its row's band, in its team's colour, then is
   dropped. Each follows the one before it: it enters once that goal's text has passed the right edge
   and a space's width has gone by (`GoalTicker#advance`, `#gap_width`). A game's goals already there when it
