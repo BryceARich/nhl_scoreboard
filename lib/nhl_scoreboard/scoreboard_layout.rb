@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 module NhlScoreboard
-  # Draws the scoreboard's left 64 columns from one game's state: the two team logos, the period,
-  # the clock and the score, at the positions of the old `led_scoreboard.py` (C1-04). It draws onto
-  # a canvas and doesn't swap; the caller swaps, as the main loop does.
+  # Draws one board's scoreboard from one game's state: the two team logos, the period, the clock
+  # and the score, at the positions of the old `led_scoreboard.py` (C1-04). A board is 64 columns
+  # wide and 24 rows high; the goal ticker has the rows below it (ADR 0006). It draws onto a canvas
+  # and doesn't swap; the caller swaps, as the main loop does.
   #
   # The game is a `SportsIngest::NHL::GameScore`, or anything that answers the same methods. This
   # reads `phase`, `period`, `period_type`, `clock`, and `home_team` and `away_team` with `score`
@@ -11,18 +12,22 @@ module NhlScoreboard
   #
   # @example
   #   layout = NhlScoreboard::ScoreboardLayout.new(font)
-  #   layout.draw(canvas, game, home_logo: logos["avalanche"], away_logo: logos["kraken"])
+  #   layout.draw(canvas, game, home_logo: logos["avalanche"], away_logo: logos["kraken"], x: 64)
   #   matrix.swap_on_vsync(canvas)
   class ScoreboardLayout
-    # @return [Integer] the column of the home logo's left edge.
+    # @return [Integer] the width of one board, in columns.
+    BOARD_WIDTH = 64
+    # @return [Integer] the height of one board's scoreboard, in rows; the ticker band starts below.
+    BOARD_HEIGHT = 24
+    # @return [Integer] the column of the home logo's left edge, from the board's left edge.
     HOME_LOGO_X = 0
-    # @return [Integer] the column of the away logo's left edge.
+    # @return [Integer] the column of the away logo's left edge, from the board's left edge.
     AWAY_LOGO_X = 44
     # @return [Integer] the row of both logos' top edge.
     LOGO_Y = 2
     # @return [Integer] the logo box's width and height.
     LOGO_SIZE = 20
-    # @return [Integer] the column the period and the score start at.
+    # @return [Integer] the column the period and the score start at, from the board's left edge.
     TEXT_X = 24
     # @return [Integer] the column the clock starts at, 5 left of {TEXT_X}.
     CLOCK_X = 19
@@ -48,27 +53,40 @@ module NhlScoreboard
       @font = font
     end
 
-    # Clears the canvas to black, then draws one game's frame onto it. An empty logo slot is a grey
-    # placeholder box.
+    # Clears this board's 64 × 24 area to black, then draws one game's frame onto it. The rows
+    # below the board, the ticker band, are left alone. An empty logo slot is a grey placeholder
+    # box.
     #
-    # @param canvas [Canvas, FakeCanvas] the canvas to draw on; it is cleared first.
+    # @param canvas [Canvas, FakeCanvas] the canvas to draw on.
     # @param game [#phase, #period, #period_type, #clock, #home_team, #away_team] the game's state.
     # @param home_logo [PpmImage, nil] the home team's logo, drawn in the left slot.
     # @param away_logo [PpmImage, nil] the away team's logo, drawn in the right slot.
+    # @param x [Integer] the board's left column on the canvas; 0 for the first board.
     # @return [nil]
     # @example
-    #   layout.draw(canvas, game, home_logo: home, away_logo: nil)
-    def draw(canvas, game, home_logo: nil, away_logo: nil)
-      canvas.fill(0, 0, 0)
-      draw_logo(canvas, HOME_LOGO_X, home_logo)
-      draw_logo(canvas, AWAY_LOGO_X, away_logo)
-      canvas.draw_text(font, TEXT_X, ORDINAL_Y, *TEXT_COLOR, ordinal(game))
-      canvas.draw_text(font, CLOCK_X, CLOCK_Y, *TEXT_COLOR, clock_text(game))
-      canvas.draw_text(font, TEXT_X, SCORE_Y, *TEXT_COLOR, score_text(game))
+    #   layout.draw(canvas, game, home_logo: home, away_logo: nil, x: 64)
+    def draw(canvas, game, home_logo: nil, away_logo: nil, x: 0)
+      clear_board(canvas, x)
+      draw_logo(canvas, x + HOME_LOGO_X, home_logo)
+      draw_logo(canvas, x + AWAY_LOGO_X, away_logo)
+      canvas.draw_text(font, x + TEXT_X, ORDINAL_Y, *TEXT_COLOR, ordinal(game))
+      canvas.draw_text(font, x + CLOCK_X, CLOCK_Y, *TEXT_COLOR, clock_text(game))
+      canvas.draw_text(font, x + TEXT_X, SCORE_Y, *TEXT_COLOR, score_text(game))
       nil
     end
 
     private
+
+    # Clears one board's area, one pixel at a time, since the canvas can't clear part of itself.
+    #
+    # @param canvas [Canvas, FakeCanvas] the canvas to clear.
+    # @param x [Integer] the board's left column.
+    # @return [void]
+    def clear_board(canvas, x)
+      BOARD_HEIGHT.times do |y|
+        BOARD_WIDTH.times { |dx| canvas.set_pixel(x + dx, y, 0, 0, 0) }
+      end
+    end
 
     # The period text: the period's ordinal in regulation, `OT` or `SO` in extra time, `INT` between
     # periods, `FINAL` at the end, and blank before the game starts.
@@ -122,7 +140,7 @@ module NhlScoreboard
     # Draws a team's logo, or a grey placeholder box in its slot when there is no logo.
     #
     # @param canvas [Canvas, FakeCanvas] the canvas to draw on.
-    # @param x [Integer] the slot's left column.
+    # @param x [Integer] the slot's left column on the canvas.
     # @param logo [PpmImage, nil] the logo, or nil for the placeholder.
     # @return [void]
     def draw_logo(canvas, x, logo)

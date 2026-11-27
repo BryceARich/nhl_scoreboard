@@ -7,7 +7,8 @@
 #
 # --frame scoreboard draws a game state (--state, a JSON file; default assets/demo_game.json). A
 # demo (--demo) plays that state out over time in the browser: countdown counts the clock down,
-# home-logos cycles the home team through every logo.
+# home-logos cycles the home team through every logo. ticker scrolls the latest goal across the
+# band under the boards, in the scoring team's colours, across every board.
 #
 #   bin/fake_panels path/to/font.bdf
 #   bin/fake_panels path/to/font.bdf --png preview.png --scale 8
@@ -26,6 +27,8 @@ DEMOS = {
   "countdown" => NhlScoreboard::GameSequence.method(:countdown),
   "home-logos" => NhlScoreboard::GameSequence.method(:cycle_home_logos)
 }.freeze
+# The ticker demo scrolls the latest goal instead (see the serve block), so it isn't in DEMOS.
+DEMO_NAMES = (DEMOS.keys + ["ticker"]).freeze
 
 options = {rows: 32, cols: 32, chain: 4, frame: "hello"}
 parser = OptionParser.new do |opts|
@@ -37,7 +40,7 @@ parser = OptionParser.new do |opts|
   opts.on("--scale N", Integer, "PNG pixel size, e.g. 8 for big readable pixels (default 1)") { |n| options[:scale] = n }
   opts.on("--frame NAME", %w[hello scoreboard], "hello (default) or scoreboard, the game-state layout") { |name| options[:frame] = name }
   opts.on("--state FILE", "game state as JSON for --frame scoreboard (default #{DEFAULT_STATE})") { |file| options[:state] = file }
-  opts.on("--demo NAME", DEMOS.keys, "play the state out in the browser: #{DEMOS.keys.join(" or ")} (needs --serve and --frame scoreboard)") { |name| options[:demo] = name }
+  opts.on("--demo NAME", DEMO_NAMES, "play the state out in the browser: #{DEMO_NAMES.join(", ")} (needs --serve and --frame scoreboard)") { |name| options[:demo] = name }
   opts.on("--serve PORT", Integer, "show the frame in a browser at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
 end
 parser.parse!
@@ -61,8 +64,14 @@ if options[:frame] == "scoreboard"
   rescue NhlScoreboard::Error, Errno::ENOENT => e
     abort e.message
   end
-  display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load)
-  canvas = display.show(state)
+  ticker = NhlScoreboard::GoalTicker.new(font)
+  display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load, ticker: ticker)
+  # A canvas 128 columns wide holds two boards, so the second board shows a second game.
+  second = state.with(home_team: NhlScoreboard::GameState::Team.new(tri_code: "VGK", score: 2),
+    away_team: NhlScoreboard::GameState::Team.new(tri_code: "CHI", score: 1), clock: "07:45", goals: [])
+  boards = (matrix.offscreen_canvas.width >= 2 * NhlScoreboard::ScoreboardLayout::BOARD_WIDTH) ? [state, second] : [state]
+  others = boards.drop(1)
+  canvas = display.show(boards)
 else
   canvas = matrix.offscreen_canvas
   canvas.fill(0, 0, 0)
@@ -78,13 +87,22 @@ if options[:serve]
   server.publish(canvas, scale: scale)
   listener = server.listen
 
-  if options[:demo]
+  if options[:demo] == "ticker"
+    # The goal scrolls one column every tenth of a second, forever, across every board's band. The
+    # thread runs until the process stops.
+    Thread.new do
+      (0..).each do |step|
+        sleep 0.1
+        server.publish(display.show(boards, step: step), scale: scale)
+      end
+    end
+  elsif options[:demo]
     # Each state in the demo is shown for one second. The thread runs until the process stops.
     frames = DEMOS.fetch(options[:demo]).call(state)
     Thread.new do
       frames.each do |frame|
         sleep 1
-        server.publish(display.show(frame), scale: scale)
+        server.publish(display.show([frame, *others]), scale: scale)
       end
     end
   end
