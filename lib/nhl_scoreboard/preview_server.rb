@@ -88,6 +88,9 @@ module NhlScoreboard
         client = listener.accept
         begin
           handle(client)
+        rescue IOError, SystemCallError
+          # A browser that closes mid-response isn't a server error; the next request still gets the frame.
+          nil
         ensure
           client.close
         end

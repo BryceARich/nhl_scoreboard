@@ -42,6 +42,33 @@ RSpec.describe NhlScoreboard::PreviewServer do
     expect(status_line(request("/frame.png"))).to eq("HTTP/1.1 503 Service Unavailable")
   end
 
+  it "keeps serving when a browser drops a connection mid-response" do
+    server.publish(NhlScoreboard::FakeCanvas.new(width: 2, height: 2), scale: 1)
+    connection = Struct.new(:input, :output) do
+      def gets
+        input.gets
+      end
+
+      def write(text)
+        raise Errno::EPIPE unless output
+
+        output.write(text)
+      end
+
+      def close
+        nil
+      end
+    end
+    dropped = connection.new(StringIO.new("GET / HTTP/1.1\r\n\r\n"), nil)
+    served = connection.new(StringIO.new("GET /frame.png HTTP/1.1\r\n\r\n"), StringIO.new("".b))
+    clients = [dropped, served]
+    listener = Object.new
+    listener.define_singleton_method(:accept) { clients.shift || raise(StandardError, "no more clients") }
+
+    expect { server.serve(listener) }.to raise_error(StandardError, "no more clients")
+    expect(served.output.string.b).to start_with("HTTP/1.1 200 OK".b)
+  end
+
   it "serves the latest published frame as a PNG" do
     canvas = NhlScoreboard::FakeCanvas.new(width: 4, height: 2)
     canvas.set_pixel(1, 1, 200, 10, 20)
