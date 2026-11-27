@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Runs the scoreboard on the panels, unattended (C1-06). It shows the favorite team's live game,
+# else takes turns through today's games. Run it on the Pi as root, since the library needs GPIO
+# access; docs/RESUME.md has the setup.
+#
+#   sudo "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-matrix/fonts/5x7.bdf --favorite COL
+#   sudo NHL_FAVORITE_TEAM=COL "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-matrix/fonts/5x7.bdf
+
+require "optparse"
+require "sports_ingest/nhl"
+require_relative "../lib/nhl_scoreboard"
+
+options = {favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
+parser = OptionParser.new do |opts|
+  opts.banner = "usage: bin/scoreboard path/to/font.bdf [options]"
+  opts.on("--favorite TRI", "favorite team's code, such as COL; a live game with it always shows (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
+  opts.on("--dwell SECONDS", Float, "seconds each game holds the panels in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
+end
+parser.parse!
+
+font_path = ARGV.fetch(0) { abort parser.banner }
+font = NhlScoreboard::Font.load(font_path)
+begin
+  NhlScoreboard::Matrix.open do |matrix|
+    display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load)
+    loop_ = NhlScoreboard::MainLoop.new(
+      source: -> { SportsIngest::NHL.scores },
+      display: display,
+      picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell]),
+      poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for(game) }
+    )
+    loop_.run
+  end
+ensure
+  font.close
+end

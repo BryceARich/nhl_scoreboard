@@ -20,3 +20,5 @@ didn't, and what follows.
 | [0004](0004-ppm-logos-presized.md) | Pre-size the team logos to 20×20 and read P6 PPM in pure Ruby | Proposed |
 | [0005](0005-layout-reads-game-state-by-duck-type.md) | Draw the scoreboard from the game state by its methods, without the sports_ingest gem | Proposed |
 | [0006](0006-ticker-band-below-the-boards.md) | Put the goal ticker in a band below the boards, across the whole canvas | Proposed |
+| [0007](0007-sports-ingest-as-git-gem.md) | Read the NHL through sports_ingest, from its git repo and pinned to a commit | Proposed |
+| [0007](0007-main-loop-picker-and-offline-reads.md) | Pick the favorite team's live game first, then rotate; keep the last games when reads fail | Proposed |

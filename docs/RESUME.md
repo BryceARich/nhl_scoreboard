@@ -2,7 +2,7 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-26 (C1-05)._
+_Last updated: 2026-11-26 (C1-06)._
 
 ## Current status
 
@@ -12,7 +12,9 @@ panel check is waiting for the maintainer on the Pi. **C1-02** (#3) adds the fak
 Mac; its specs pass, and `bin/fake_panels` is for a human to look at. **C1-03** (#4) adds the
 logo loader; its 34 logos are pre-sized to 20×20 in `assets/logos/`. **C1-04** (#5) adds
 `ScoreboardLayout`, which draws the left 64 columns from a game's live state (ADR 0005); its specs
-pass, and `bin/fake_panels --frame scoreboard` is for a human to look at. **C1-05** (#6) adds the goal ticker, a band under the boards in rows 24 to 31 that scrolls the latest goal in the scoring team's colours across the whole grid (ADR 0006); its specs pass, and `--demo ticker` is for a human to look at. Next, in order: **C1-06**.
+pass, and `bin/fake_panels --frame scoreboard` is for a human to look at. **C1-05** (#6) adds the goal ticker, a band under the boards in rows 24 to 31 that scrolls the latest goal in the scoring team's colours across the whole grid (ADR 0006); its specs pass, and `--demo ticker` is for a human to look at. **C1-06** (#7) adds the main loop and
+`bin/scoreboard` (ADR 0007): the game picker, adaptive polling, and offline tolerance. Its specs pass
+offline; a run on the panels and through a full game are for the maintainer. Next, in order: **C1-07**.
 CI runs the licensed-data guard and the specs and lint on every pull request and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
 for you, and `/spawn_unblocked` starts sessions for the ready ones.
@@ -48,8 +50,16 @@ bundle exec standardrb    # should be clean
 
 ### Running the app
 
-There is no app to run yet. C1-06 (#7) adds the main loop and must put its command here;
-C1-07 (#8) adds the Pi service. Until then, the panel test below is the end-to-end hardware check.
+On the Pi, as root, with the panels wired and librgbmatrix built ([`HARDWARE.md`](HARDWARE.md)).
+It shows the favorite team's live game, else takes turns through today's games:
+
+```bash
+sudo NHL_FAVORITE_TEAM=COL "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-matrix/fonts/5x7.bdf
+```
+
+`--favorite TRI` does the same as `NHL_FAVORITE_TEAM`, and `--dwell SECONDS` sets how long each
+game holds the panels (10 by default). It reads the NHL through `sports_ingest`, which the Pi
+must reach over the network. C1-07 (#8) adds the Pi service that starts it on boot.
 
 ### Fake canvas on the Mac
 
@@ -87,74 +97,9 @@ script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 -
 The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`
 needs librgbmatrix ([ADR 0003](adr/0003-pure-ruby-fake-canvas.md)).
 
-## Hardware setup
+## Hardware
 
-### Panels
-
-Two P4 panels (4 mm pitch), each 64 wide by 32 high, **1/16 scan**, HUB75, chained into 128×32.
-The pair is inferred from the old layout (128 columns, split at 64); check it against the hardware.
-
-### Wiring
-
-Pi header to the first panel's **input** connector, for the library's `regular` mapping, chain 1
-([upstream diagram](https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md)):
-
-| Signal | Pin | GPIO | | Signal | Pin | GPIO |
-|---|---|---|---|---|---|---|
-| R1 | 23 | 11 | | A | 15 | 22 |
-| G1 | 13 | 27 | | B | 16 | 23 |
-| B1 | 26 | 7 | | C | 18 | 24 |
-| R2 | 24 | 8 | | D | 22 | 25 |
-| G2 | 21 | 9 | | CLK | 11 | 17 |
-| B2 | 19 | 10 | | LAT / STB | 7 | 4 |
-| GND | 6 | — | | OE | 12 | 18 |
-
-- 1/16 scan uses address lines A–D. **E stays unconnected**; it's for 64-row panels.
-- Ribbon from the first panel's **output** to the second's input.
-- Power panels from their own 5 V supply, sized from the panel's rating, with correct polarity and
-  a ground shared with the Pi. Don't power them from the Pi's header.
-- The Pi's signals are 3.3 V. Keep cables short; if pixels glitch, add a 5 V level shifter (74HCT245).
-
-### Matrix options
-
-As in `led_scoreboard.py`, which C1-01 carries over:
-
-| Option | Value | Flag |
-|---|---|---|
-| rows | 32 | `--led-rows=32` |
-| cols | 32 (library default) | `--led-cols=32` |
-| chain length | 4 | `--led-chain=4` |
-| parallel | 1 | `--led-parallel=1` |
-| hardware mapping | `regular` | `--led-gpio-mapping=regular` |
-| GPIO slowdown | 2 | `--led-slowdown-gpio=2` |
-
-Chain 4 counts 32-column units: 4 × 32 = 128 columns. Two 64-wide panels can also be described as
-cols 64, chain 2. Don't mix them (cols 64 with chain 4 is 256). A faster Pi may need more slowdown.
-
-### Building librgbmatrix (Pi)
-
-[rpi-rgb-led-matrix](https://github.com/hzeller/rpi-rgb-led-matrix) is C++, built from source.
-Targets checked against upstream commit `a8dd685` on 2026-11-24; not yet run on this project's Pi.
-
-```bash
-git clone https://github.com/hzeller/rpi-rgb-led-matrix.git ~/rpi-rgb-led-matrix
-cd ~/rpi-rgb-led-matrix
-git checkout a8dd6854580b7e2b18d0f697cec94415dd8824cd
-make                  # lib/librgbmatrix.a, lib/librgbmatrix.so.1 and the demo
-sudo make install     # /usr/local/lib/librgbmatrix.so, headers, ldconfig
-```
-
-Panel test; a rotating square should cover both panels:
-
-```bash
-sudo examples-api-use/demo -D0 --led-rows=32 --led-cols=32 --led-chain=4 --led-parallel=1 --led-gpio-mapping=regular --led-slowdown-gpio=2
-```
-
-Ruby's binding, same panels: `hello` for ten seconds (needs the font from the repo above):
-
-```bash
-sudo "$(mise which ruby)" bin/hello_panels ~/rpi-rgb-led-matrix/fonts/7x13.bdf
-```
+Panels, wiring, matrix options and the librgbmatrix build are in [`HARDWARE.md`](HARDWARE.md).
 
 ## Known gotchas
 
