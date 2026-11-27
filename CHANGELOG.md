@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Preview server survives a dropped connection (C1-14): `PreviewServer#serve` used to end on the
+  first client that broke its connection mid-response (`Errno::EPIPE`), which killed the preview
+  thread in `bin/fake_panels --serve` and left the page frozen until a restart. It now logs the
+  error to standard error, closes that client and keeps accepting. Build order: C1-14.
+
 - Goal ticker scrolls (C1-10): `MainLoop` keeps a scroll clock and draws the goal ticker one column
   every 0.1 s (`SCROLL_SECONDS`), the way `bin/fake_panels --demo ticker` does, so `bin/scoreboard` and
   `bin/replay_night` show the latest goal sliding across each row's band. Before, the step was never
