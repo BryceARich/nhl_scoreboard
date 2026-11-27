@@ -8,8 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Team logos (C1-03): `PpmImage` reads and writes binary PPM (P6) in pure Ruby, with `resize_box`
-  and `draw`; `LogoLibrary` loads `assets/logos/`, the 32 logos pre-sized to 20×20 by
-  `script/import_logos` from NHL_Apps. `bin/fake_panels --logo avalanche` draws one on the Mac.
+  and `draw`; `LogoLibrary` loads `assets/logos/`, the 32 NHL_Apps logos pre-sized to 20×20 by
+  `script/import_logos`, plus `kraken` and `mammoth` (34 in all). `bin/fake_panels --logo avalanche` draws one on the Mac.
   See ADR 0004.
 - Fake canvas for the Mac: `FakeMatrix` and `FakeCanvas` with the same methods as `Matrix` and
   `Canvas`, drawing in memory. `FakeCanvas` shows a frame as terminal cells, one per LED, or a PNG
