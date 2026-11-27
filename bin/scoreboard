@@ -27,6 +27,7 @@ end
 parser.parse!
 
 font_path = ARGV.fetch(0) { abort parser.banner }
+abort "--delay can't be negative" if options[:delay].negative?
 settings = NhlScoreboard::MatrixSettings.new
 canvas_width = settings.cols * settings.chain_length
 canvas_height = settings.rows

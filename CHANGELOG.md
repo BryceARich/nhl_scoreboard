@@ -22,7 +22,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   boards back from the feed, so they line up with a TV broadcast that runs behind. `DelayedGames`
   keeps each read with its collection time, and `MainLoop` shows the newest read at least `delay`
   seconds old, so the score, clock and goal ticker move together; the default 0 keeps the current
-  behaviour (ADR 0030). `bin/replay_night --png` shows the frame a delayed board would show. Build order: C1-12.
+  behaviour (ADR 0030). `bin/replay_night --png` shows the frame a delayed board would show.
+  `bin/fake_panels --live --delay SECONDS` does the same on the fake panels. Build order: C1-12.
 - Goal ticker text (C1-10): each goal scrolls as "Goal (TRI) scorer clock Pn". A goal by the
   favorite team (`--favorite`, `NHL_FAVORITE_TEAM`) scrolls as "{Team name} GOAL!!!", for example
   "AVALANCHE GOAL!!! scorer clock Pn" (`TeamNames`). `GoalTicker` takes `favorite:`.

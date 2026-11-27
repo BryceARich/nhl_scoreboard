@@ -42,7 +42,7 @@ DEMOS = {
 REPLAY = "replay"
 DEMO_NAMES = (DEMOS.keys + ["ticker", REPLAY]).freeze
 
-options = {rows: 32, cols: 32, chain: 4, frame: "hello", favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
+options = {rows: 32, cols: 32, chain: 4, frame: "hello", favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL, delay: 0}
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/fake_panels path/to/font.bdf [options]"
   opts.on("--rows N", Integer, "rows per panel (default 32)") { |n| options[:rows] = n }
@@ -59,10 +59,12 @@ parser = OptionParser.new do |opts|
   opts.on("--dwell SECONDS", Float, "with --live, seconds each game holds its board (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
   opts.on("--panels N", Integer, "with --live, boards on the panels, each 64 columns wide (default: a full grid of the panels)") { |n| options[:panels] = n }
   opts.on("--columns N", Integer, "with --live, boards per row (default: all on one row); needs --panels") { |n| options[:columns] = n }
+  opts.on("--delay SECONDS", Float, "with --live, hold the boards back from the feed, as bin/scoreboard --delay does (default 0)") { |s| options[:delay] = s }
 end
 parser.parse!
 
 font_path = ARGV.fetch(0) { abort parser.banner }
+abort "--delay can't be negative" if options[:delay]&.negative?
 
 if options[:demo] && !(options[:serve] && options[:frame] == "scoreboard")
   abort "--demo needs --serve and --frame scoreboard"
@@ -111,7 +113,8 @@ if options[:live]
     source: NhlScoreboard::DayScores.new(scores: ->(date) { live_games.call(SportsIngest::NHL.scores(date: date)) }),
     display: served,
     picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards),
-    poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for_phase(game.phase) }
+    poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for_phase(game.phase) },
+    delay: options[:delay]
   )
   # The page reads the newest frame from the server; the loop publishes one every tick (0.1 s).
   listener = server.listen

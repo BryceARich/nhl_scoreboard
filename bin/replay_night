@@ -100,6 +100,7 @@ end
 parser.parse!
 
 font_path, directory = ARGV.fetch(0) { abort parser.banner }, ARGV.fetch(1) { abort parser.banner }
+abort "--delay can't be negative" if options[:delay].negative?
 abort "give --serve PORT, --png FILE or --hardware" unless options[:serve] || options[:png] || options[:hardware]
 abort "--hardware plays on the real panels; don't combine it with --serve or --png" if options[:hardware] && (options[:serve] || options[:png])
 abort "--at needs --png" if options[:at] && !options[:png]

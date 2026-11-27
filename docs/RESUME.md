@@ -125,7 +125,7 @@ Today's live games go through the main loop on the fake panels with `--live`. It
 SSL_CERT_FILE=/etc/ssl/cert.pem script/claude/run bundle exec ruby bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --live
 ```
 
-Run it with `bundle exec ruby` so the gem loads. `--favorite` and `--dwell` work as they do for `bin/scoreboard`. `--panels N` sets the boards (each 64 columns wide) and `--columns N` the boards per row, as in `bin/replay_night`; the canvas has to be big enough (`--rows`, `--cols`, `--chain`), and the script says so if not. For 4 boards in 2 columns on four 64-wide panels, add `--rows 64 --cols 64 --chain 4 --panels 4 --columns 2`.
+Run it with `bundle exec ruby` so the gem loads. `--favorite`, `--dwell` and `--delay` work as they do for `bin/scoreboard`. `--panels N` sets the boards (each 64 columns wide) and `--columns N` the boards per row, as in `bin/replay_night`; the canvas has to be big enough (`--rows`, `--cols`, `--chain`), and the script says so if not. For 4 boards in 2 columns on four 64-wide panels, add `--rows 64 --cols 64 --chain 4 --panels 4 --columns 2`.
 
 A whole night goes through the main loop with `bin/replay_night`. Put one recording (`.jsonl`) or play-by-play
 payload (`.json`) per game in a directory outside the repo. `--panels` sets the boards, `--columns` the boards per
