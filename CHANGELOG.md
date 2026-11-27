@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `--hold SECONDS` now limits it.
 - Replay start (C1-10): `bin/replay_night --from-period 2` starts the night when the favorite's game
   reaches that period (`NightReplay#seconds_into_period`). It needs `--serve` and a favorite.
+- Follow today's games (C1-11): `DayScores` asks `sports_ingest` for the games of the local
+  calendar day on every read, so the loop rolls over at local midnight. `MainLoop` keeps a final
+  game on the boards for one dwell after it is first seen final, then drops it from the rotation,
+  and blanks the boards when no game is left to show, instead of keeping the last frame. A game
+  that starts mid-run joins on the next read. `GameState#final?` is new. The night replay now drops
+  finished games after one dwell too (ADR 0029). Build order: C1-11.
 - Board grid (C1-06): `BoardGrid` places boards on a grid of any size, with
   `columns` to a row, and each row of boards gets its own goal ticker under it, sized to that row
   (ADR 0007, which supersedes ADR 0006's band across the whole canvas). `ScoreboardLayout#draw`

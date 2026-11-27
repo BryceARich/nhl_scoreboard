@@ -103,10 +103,11 @@ RSpec.describe NhlScoreboard::NightReplay do
     context "on #{panels} boards in #{columns} #{(columns == 1) ? "column" : "columns"}" do
       let(:draws) { play_night(night, panels: panels, columns: columns, seconds: 4300) }
 
-      it "shows as many boards as there are started games, up to the boards" do
+      it "shows as many boards as there are games still on the boards, up to the boards" do
         draws.each do |now, boards|
-          started = [0, 600, 1800].count { |start| now >= start }
-          expect(boards.size).to eq([panels, started].min), "at #{now}s"
+          # A game is on the boards from its start until one dwell (10 s) after it goes final, 2400 s in.
+          on_boards = [0, 600, 1800].count { |start| now >= start && now < start + 2400 + 10 }
+          expect(boards.size).to eq([panels, on_boards].min), "at #{now}s"
         end
       end
 

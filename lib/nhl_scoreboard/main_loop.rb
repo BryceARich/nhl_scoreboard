@@ -8,6 +8,10 @@ module NhlScoreboard
   # - **Adaptive polling:** the next read comes after the shortest wait +poll_interval+ gives any
   #   game (for `SportsIngest::NHL::PollInterval.for`, 10 s while live, 60 s before the puck drops).
   #   With no game left to poll, it rereads every {IDLE_SECONDS}, which catches the next day's games.
+  # - **A day of games (ADR 0029):** each read is the day's games, so a game that starts mid-run joins
+  #   the rotation and its score shows on the next read. A final game holds its board for one dwell
+  #   after it is first seen final, then leaves the rotation. With no game left to show, the boards
+  #   go blank (the idle state) rather than keep the last frame.
   # - **Offline tolerance:** when a read fails, the loop keeps the last good games on the panels,
   #   retries after a backoff that doubles from {RETRY_SECONDS} up to {RETRY_MAX_SECONDS}, and
   #   logs the failure. It never exits on a read error (ADR 0007).
@@ -66,6 +70,7 @@ module NhlScoreboard
       @clock = clock
       @logger = logger
       @games = []
+      @finished_at = {}
       @next_read_at = nil
       @failures = 0
     end
@@ -91,8 +96,7 @@ module NhlScoreboard
     def tick(now)
       @scroll_started_at ||= now
       read(now) if @next_read_at.nil? || now >= @next_read_at
-      boards = picker.boards(@games, now: now)
-      display.show(boards, step: scroll_step(now)) unless boards.empty?
+      display.show(picker.boards(on_boards(now), now: now), step: scroll_step(now))
       SCROLL_SECONDS
     end
 
@@ -107,12 +111,15 @@ module NhlScoreboard
       ((now - @scroll_started_at) / SCROLL_SECONDS).round(6).floor
     end
 
-    # Reads the games and sets when the next read is due. A failure keeps the last good games.
+    # Reads the games and sets when the next read is due. A failure keeps the last good games. It also
+    # records when each final game was first seen final, and forgets games the read no longer lists,
+    # so a rematch on a later day starts its dwell afresh.
     #
     # @param now [Numeric] the current time.
     # @return [void]
     def read(now)
       @games = Array(source.call)
+      @finished_at = @games.select(&:final?).to_h { |game| [key(game), @finished_at.fetch(key(game), now)] }
       @failures = 0
       @next_read_at = now + next_poll_seconds
     rescue => e
@@ -126,6 +133,23 @@ module NhlScoreboard
     def next_poll_seconds
       waits = @games.filter_map { |game| @poll_interval.call(game) }
       waits.empty? ? IDLE_SECONDS : waits.min
+    end
+
+    # The games still in the rotation: a final game leaves once it has held its board for one dwell.
+    #
+    # @param now [Numeric] the current time.
+    # @return [Array<Object>] the games the picker may choose from.
+    def on_boards(now)
+      @games.reject { |game| game.final? && now - @finished_at.fetch(key(game)) >= picker.dwell }
+    end
+
+    # A game's identity across reads: the two teams' tri-codes. A day never has the same pair twice,
+    # and the reads give new objects each time, so the object itself can't be the key.
+    #
+    # @param game [#home_team, #away_team] a game from the source.
+    # @return [Array<String>] the home and away tri-codes.
+    def key(game)
+      [game.home_team.tri_code, game.away_team.tri_code]
     end
   end
 end

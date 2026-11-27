@@ -100,6 +100,13 @@ module NhlScoreboard
       %i[regulation overtime shootout intermission].include?(phase)
     end
 
+    # @return [Boolean] whether the game is over, so the main loop can take it off the boards after its dwell
+    # @example
+    #   state.final? # => false during the first period
+    def final?
+      phase == :final
+    end
+
     # The state as a Hash with string keys, in the shape {.from_h} reads. Writing it to JSON and
     # reading it back gives an equal state.
     #
