@@ -7,12 +7,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Board grid (C1-06): `BoardGrid` places boards on a grid of any size, with
+  `columns` to a row, and each row of boards gets its own goal ticker under it, sized to that row
+  (ADR 0007, which supersedes ADR 0006's band across the whole canvas). `ScoreboardLayout#draw`
+  takes `y:`, and `GoalTicker#draw` takes a band's rectangle. `bin/scoreboard --boards N --columns N`
+  lays out a grid other than the panels' full one. Build order: C1-06.
 - Goal ticker (C1-05): `GoalTicker` scrolls the latest goal across a band under the boards (rows
   24 to 31, the full canvas width) in the scoring team's colour (`TeamColors`, one primary colour
   per team), so the text can slide from one board to the next (ADR 0006). Each board is 64 × 24
   for its scoreboard; `ScoreboardLayout#draw` takes `x:` for the board's column. `GameDisplay#show`
   takes a list of states, one board each, and `step:` and `ticker:`. `bin/fake_panels --demo ticker`
-  shows two games with the ticker across both.
+  shows games with the ticker across the boards.
+- Main loop (C1-06): `GamePicker` puts the favorite team's game on the first board while it plays today
+  (`--favorite`, or `NHL_FAVORITE_TEAM`), and rotates the other games through the remaining boards
+  for `--dwell` seconds, live ones first. The board count comes from the matrix width, so it
+  follows the panels. With no more games than boards, nothing rotates, and no two boards show the
+  same game. `MainLoop` reads the day's games through `sports_ingest` with the gem's poll interval,
+  keeps the last games on the panels when a read fails, and `bin/scoreboard` runs it on the panels.
+  `sports_ingest` is a git gem pinned to a commit (ADR 0007, both). Build order: C1-06.
 - Scoreboard layout (C1-04): `ScoreboardLayout` draws the left 64 columns from a game's live
   state, with the home and away logos, the period, the clock and the score at the old
   `led_scoreboard.py` positions. It reads the game by its methods, so no new gem is needed; see ADR

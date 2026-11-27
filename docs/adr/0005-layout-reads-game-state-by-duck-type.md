@@ -40,3 +40,10 @@ on `sports_ingest`.
   the same names, so a rename shows up in review only if someone compares them. C1-06 should run
   the layout on a real `GameScore` once, in a spec that is skipped when the gem is absent.
 - When C1-06 adds the gem, this ADR gets a follow-up, not an edit.
+
+## Follow-up (C1-06)
+
+The gem is now in the Gemfile for `bin/scoreboard` only; see [0007](0007-sports-ingest-as-git-gem.md).
+The layout still reads games by duck type and doesn't require the gem. The spec that draws a real
+`SportsIngest::NHL::GameScore` is in `spec/nhl_scoreboard/game_score_spec.rb`, skipped when the gem
+is absent.
