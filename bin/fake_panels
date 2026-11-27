@@ -15,20 +15,21 @@ require "optparse"
 require_relative "../lib/nhl_scoreboard"
 
 # The old NHL_Apps/led_scoreboard.py layout: logos are 20×20 at (0, 2) and (44, 2), and the period,
-# clock and score sit at x=24 on baselines 6, 13 and 20 (clock 5 px left). The left logo slot takes
-# `left_logo` (C1-03) when given; otherwise, and for the right slot, it is a grey placeholder.
+# clock and score sit at x=24 on baselines 6, 13 and 20 (clock 5 px left). Each logo slot takes its
+# logo when given (C1-03); an empty slot is a grey placeholder.
 #
 # @param matrix [NhlScoreboard::FakeMatrix] the matrix to draw on.
 # @param font [NhlScoreboard::BdfFont] the font for the text.
 # @param clock [String] the clock text to show.
 # @param left_logo [NhlScoreboard::PpmImage, nil] the logo for the left 20×20 slot.
+# @param right_logo [NhlScoreboard::PpmImage, nil] the logo for the right 20×20 slot.
 # @return [NhlScoreboard::FakeCanvas] the canvas now showing, which the matrix has swapped in.
-def draw_scoreboard(matrix, font, clock, left_logo: nil)
+def draw_scoreboard(matrix, font, clock, left_logo: nil, right_logo: nil)
   canvas = matrix.offscreen_canvas
   canvas.fill(0, 0, 0)
-  [0, 44].each do |logo_x|
-    if logo_x.zero? && left_logo
-      left_logo.draw(canvas, logo_x, 2)
+  [[0, left_logo], [44, right_logo]].each do |logo_x, logo|
+    if logo
+      logo.draw(canvas, logo_x, 2)
       next
     end
     20.times do |dy|
@@ -40,7 +41,7 @@ def draw_scoreboard(matrix, font, clock, left_logo: nil)
   end
   canvas.draw_text(font, 24, 6, 255, 255, 255, "1ST")
   canvas.draw_text(font, 19, 13, 255, 255, 255, clock)
-  canvas.draw_text(font, 24, 20, 255, 255, 255, "2-1")
+  canvas.draw_text(font, 24, 20, 255, 255, 255, "10-0")
   matrix.swap_on_vsync(canvas)
   matrix.canvas
 end
@@ -78,9 +79,11 @@ if options[:logo] && options[:frame] != "scoreboard"
 end
 
 left_logo = nil
+right_logo = nil
 if options[:logo]
   logos = NhlScoreboard::LogoLibrary.load
   left_logo = logos.fetch(options[:logo]) { abort "no logo named #{options[:logo]}; try one of: #{logos.keys.join(", ")}" }
+  right_logo = logos.fetch("goldenknights") { abort "no goldenknights logo in assets/logos" }
 end
 
 font = NhlScoreboard::BdfFont.load(font_path)
@@ -89,7 +92,7 @@ matrix = NhlScoreboard::FakeMatrix.new(settings)
 
 if options[:frame] == "scoreboard"
   first_clock = options[:countdown] ? clock_text(options[:countdown]) : "12:34"
-  canvas = draw_scoreboard(matrix, font, first_clock, left_logo: left_logo)
+  canvas = draw_scoreboard(matrix, font, first_clock, left_logo: left_logo, right_logo: right_logo)
 else
   canvas = matrix.offscreen_canvas
   canvas.fill(0, 0, 0)
@@ -108,7 +111,7 @@ if options[:serve]
     # The server blocks, so the clock ticks on its own thread; each tick publishes a new frame.
     Thread.new do
       options[:countdown].downto(0) do |remaining|
-        draw_scoreboard(matrix, font, clock_text(remaining), left_logo: left_logo) if remaining < options[:countdown]
+        draw_scoreboard(matrix, font, clock_text(remaining), left_logo: left_logo, right_logo: right_logo) if remaining < options[:countdown]
         server.publish(matrix.canvas, scale: options[:scale] || 7)
         sleep 1 unless remaining.zero?
       end
