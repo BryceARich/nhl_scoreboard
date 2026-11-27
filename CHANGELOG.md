@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Scoreboard layout (C1-04): `ScoreboardLayout` draws the left 64 columns from a game's live
+  state, with the home and away logos, the period, the clock and the score at the old
+  `led_scoreboard.py` positions. It reads the game by its methods, so no new gem is needed; see ADR
+  0005. `TeamLogos` maps each of the 32 current teams' tri-codes to its logo. `bin/fake_panels
+  --frame scoreboard` now draws through the layout.
 - Team logos (C1-03): `PpmImage` reads and writes binary PPM (P6) in pure Ruby, with `resize_box`
   and `draw`; `LogoLibrary` loads `assets/logos/`, the 32 NHL_Apps logos pre-sized to 20×20 by
   `script/import_logos`, plus `kraken` and `mammoth` (34 in all, with `wings` dropped as a duplicate of `redwings`). `bin/fake_panels --logo avalanche` draws one on the Mac.
