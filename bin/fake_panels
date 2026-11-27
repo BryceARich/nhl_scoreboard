@@ -10,6 +10,11 @@
 # home-logos cycles the home team through every logo. ticker scrolls the latest goal across the
 # band under the boards, in the scoring team's colours, across every board.
 #
+# --live runs the scoreboard's main loop on the fake panels with today's games from the NHL, in the
+# browser at --serve: the same boards, rotation, dwell and goal ticker as bin/scoreboard on the Pi
+# (ADR 0029). It needs the NHL reachable; on a Mac set SSL_CERT_FILE (docs/GAME_DATA.md).
+#
+#   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --live
 #   bin/fake_panels path/to/font.bdf
 #   bin/fake_panels path/to/font.bdf --png preview.png --scale 8
 #   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080
@@ -36,7 +41,7 @@ DEMOS = {
 REPLAY = "replay"
 DEMO_NAMES = (DEMOS.keys + ["ticker", REPLAY]).freeze
 
-options = {rows: 32, cols: 32, chain: 4, frame: "hello"}
+options = {rows: 32, cols: 32, chain: 4, frame: "hello", favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/fake_panels path/to/font.bdf [options]"
   opts.on("--rows N", Integer, "rows per panel (default 32)") { |n| options[:rows] = n }
@@ -48,6 +53,9 @@ parser = OptionParser.new do |opts|
   opts.on("--state FILE", "game state as JSON for --frame scoreboard (default #{DEFAULT_STATE}); a recording for --demo replay") { |file| options[:state] = file }
   opts.on("--demo NAME", DEMO_NAMES, "play the state out in the browser: #{DEMO_NAMES.join(", ")} (needs --serve and --frame scoreboard)") { |name| options[:demo] = name }
   opts.on("--serve PORT", Integer, "show the frame in a browser at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
+  opts.on("--live", "run the main loop on today's games from the NHL, in the browser (needs --serve and --frame scoreboard)") { options[:live] = true }
+  opts.on("--favorite TRI", "with --live, the favorite team's code, such as COL (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
+  opts.on("--dwell SECONDS", Float, "with --live, seconds each game holds its board (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
 end
 parser.parse!
 
@@ -63,9 +71,36 @@ if options[:demo] == REPLAY && !options[:state]
   abort "--demo replay needs --state RECORDING"
 end
 
+if options[:live] && !(options[:serve] && options[:frame] == "scoreboard" && !options[:demo] && !options[:state])
+  abort "--live needs --serve and --frame scoreboard, and no --state or --demo"
+end
+
 font = NhlScoreboard::BdfFont.load(font_path)
 settings = NhlScoreboard::MatrixSettings.new(rows: options[:rows], cols: options[:cols], chain_length: options[:chain])
 matrix = NhlScoreboard::FakeMatrix.new(settings)
+
+if options[:live]
+  require "sports_ingest/nhl"
+
+  blank = matrix.offscreen_canvas
+  grid = NhlScoreboard::BoardGrid.for_canvas(width: blank.width, height: blank.height)
+  server = NhlScoreboard::PreviewServer.new(port: options[:serve])
+  display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load,
+    ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
+  served = NhlScoreboard::ServedDisplay.new(display: display, server: server, scale: options[:scale] || 7)
+  live_games = NhlScoreboard::LiveGames.new(goals: ->(id) { SportsIngest::NHL.goals(id) }, player: ->(id) { SportsIngest::NHL.player(id) })
+  loop_ = NhlScoreboard::MainLoop.new(
+    source: NhlScoreboard::DayScores.new(scores: ->(date) { live_games.call(SportsIngest::NHL.scores(date: date)) }),
+    display: served,
+    picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards),
+    poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for_phase(game.phase) }
+  )
+  # The page reads the newest frame from the server; the loop publishes one every tick (0.1 s).
+  listener = server.listen
+  Thread.new { server.serve(listener) }
+  puts "live: today's games at http://127.0.0.1:#{server.port} (Ctrl-C to stop)"
+  loop_.run
+end
 
 if options[:frame] == "scoreboard"
   begin

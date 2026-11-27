@@ -115,6 +115,14 @@ script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 -
 
 The format and the frame rule are in [ADR 0019](adr/0019-replay-recordings-one-frame-a-second.md).
 
+Today's live games go through the main loop on the fake panels with `--live`. It reads the NHL through `sports_ingest`, so a Mac needs `SSL_CERT_FILE`. The boards, rotation, dwell and goal ticker match `bin/scoreboard` on the Pi, and the page refreshes every 0.1 s:
+
+```bash
+SSL_CERT_FILE=/etc/ssl/cert.pem script/claude/run bundle exec ruby bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --live
+```
+
+Run it with `bundle exec ruby` so the gem loads. `--favorite` and `--dwell` work as they do for `bin/scoreboard`.
+
 A whole night goes through the main loop with `bin/replay_night`. Put one recording (`.jsonl`) or play-by-play
 payload (`.json`) per game in a directory outside the repo. `--panels` sets the boards, `--columns` the boards per
 row. Give lists (`--panels 2,4 --columns 1,2`) to try every layout that fits: `--png` writes one frame per layout at

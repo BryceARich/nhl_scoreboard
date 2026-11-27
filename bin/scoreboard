@@ -45,11 +45,12 @@ begin
   NhlScoreboard::Matrix.open(settings) do |matrix|
     display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load,
       ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
+    live_games = NhlScoreboard::LiveGames.new(goals: ->(id) { SportsIngest::NHL.goals(id) }, player: ->(id) { SportsIngest::NHL.player(id) })
     loop_ = NhlScoreboard::MainLoop.new(
-      source: NhlScoreboard::DayScores.new(scores: ->(date) { SportsIngest::NHL.scores(date: date) }),
+      source: NhlScoreboard::DayScores.new(scores: ->(date) { live_games.call(SportsIngest::NHL.scores(date: date)) }),
       display: display,
       picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards),
-      poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for(game) }
+      poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for_phase(game.phase) }
     )
     loop_.run
   end
