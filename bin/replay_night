@@ -27,6 +27,7 @@
 
 require "json"
 require "optparse"
+require "zlib"
 require_relative "../lib/nhl_scoreboard"
 
 # Draws each board list through a display and publishes the frame to the browser, so the main loop
@@ -38,12 +39,32 @@ class BrowserDisplay
     @scale = scale
   end
 
+  # Draws the boards and publishes the frame. A frame that fails to encode (Zlib::DataError, seen
+  # on a thread under load) is retried once and then skipped, so one bad frame doesn't stop the
+  # preview: the next tick draws the next frame.
+  #
   # @param boards [Array<GameState>] the games on the boards.
   # @param step [Integer] the goal ticker's scroll step, from the main loop.
   # @return [void]
   def show(boards, step: 0)
-    @server.publish(@display.show(boards, step: step), scale: @scale)
+    canvas = @display.show(boards, step: step)
+    publish(canvas)
     nil
+  end
+
+  private
+
+  # @param canvas [FakeCanvas] the frame to publish.
+  # @return [void]
+  def publish(canvas)
+    @server.publish(canvas, scale: @scale)
+  rescue Zlib::DataError => e
+    $stderr.puts "replay_night: frame failed to encode (#{e.message}); retrying once"
+    begin
+      @server.publish(canvas, scale: @scale)
+    rescue Zlib::DataError => e2
+      $stderr.puts "replay_night: frame skipped (#{e2.message})"
+    end
   end
 end
 

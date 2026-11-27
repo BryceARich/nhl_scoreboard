@@ -12,7 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `bin/replay_night` show the latest goal sliding across each row's band. Before, the step was never
   advanced, so the text stayed off the edge. Reads and rotation keep their own times (ADR 0025).
   `FakeCanvas#to_png` now appends whole rows instead of bytes, so a frame at the browser's scale is
-  about ten times faster, with the same PNG bytes. Build order: C1-10.
+  about ten times faster, with the same PNG bytes. `bin/replay_night --serve` retries a frame that
+  fails to encode (`Zlib::DataError`, seen once on the preview thread) and skips it if the retry
+  fails, so the preview keeps going. Build order: C1-10.
 
 ### Added
 
