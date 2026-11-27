@@ -66,6 +66,7 @@ parser = OptionParser.new do |opts|
   opts.on("--serve PORT", Integer, "show the frame in a browser at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
   opts.on("--countdown SECONDS", Integer, "count the clock down from SECONDS, once a second (needs --serve and --frame scoreboard)") { |s| options[:countdown] = s }
   opts.on("--logo NAME", "draw this team logo from assets/logos in the left slot, e.g. avalanche (needs --frame scoreboard)") { |name| options[:logo] = name }
+  opts.on("--cycle-logos", "show each team logo in the left slot for one second, in turn, until Ctrl-C (needs --serve and --frame scoreboard)") { options[:cycle] = true }
 end
 parser.parse!
 
@@ -77,12 +78,20 @@ end
 if options[:logo] && options[:frame] != "scoreboard"
   abort "--logo needs --frame scoreboard"
 end
+if options[:cycle] && !(options[:serve] && options[:frame] == "scoreboard")
+  abort "--cycle-logos needs --serve and --frame scoreboard"
+end
+if options[:cycle] && (options[:countdown] || options[:logo])
+  abort "--cycle-logos can't be combined with --countdown or --logo"
+end
 
 left_logo = nil
 right_logo = nil
+logos = NhlScoreboard::LogoLibrary.load
 if options[:logo]
-  logos = NhlScoreboard::LogoLibrary.load
   left_logo = logos.fetch(options[:logo]) { abort "no logo named #{options[:logo]}; try one of: #{logos.keys.join(", ")}" }
+end
+if options[:logo] || options[:cycle]
   right_logo = logos.fetch("goldenknights") { abort "no goldenknights logo in assets/logos" }
 end
 
@@ -106,6 +115,19 @@ if options[:serve]
   server = NhlScoreboard::PreviewServer.new(port: options[:serve])
   server.publish(canvas, scale: options[:scale] || 7)
   listener = server.listen
+
+  if options[:cycle]
+    # Each logo stays for one second, then the next one; the thread runs until the process stops.
+    Thread.new do
+      loop do
+        logos.each do |_name, logo|
+          draw_scoreboard(matrix, font, "12:34", left_logo: logo, right_logo: right_logo)
+          server.publish(matrix.canvas, scale: options[:scale] || 7)
+          sleep 1
+        end
+      end
+    end
+  end
 
   if options[:countdown]
     # The server blocks, so the clock ticks on its own thread; each tick publishes a new frame.
