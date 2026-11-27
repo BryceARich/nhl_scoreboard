@@ -25,17 +25,17 @@ RSpec.describe NhlScoreboard::GamePicker do
     expect(described_class.new.boards([], now: 0)).to eq([])
   end
 
-  it "shows the only game of the day on board 1 and leaves board 2 empty, favorite or not" do
+  it "shows the only game of the day on the first board and leaves the others empty, favorite or not" do
     expect(names(described_class.new.boards([game("a")], now: 0))).to eq(["a"])
     expect(names(described_class.new(favorite: "COL").boards([fav], now: 0))).to eq(["fav"])
   end
 
-  it "puts the favorite's game on board 1 before puck drop, with another game on board 2" do
+  it "puts the favorite's game on the first board before puck drop, with another game on the next board" do
     picker = described_class.new(favorite: "COL", dwell: 10)
     expect(names(picker.boards([game("a"), fav], now: 0))).to eq(%w[fav a])
   end
 
-  it "keeps the favorite's game on board 1 while it's live, and later when it's final" do
+  it "keeps the favorite's game on the first board while it's live, and later when it's final" do
     picker = described_class.new(favorite: "COL", dwell: 10)
     live_fav = game("fav", state: :live, home: "COL", away: "CHI")
     final_fav = game("fav", state: :final, home: "COL", away: "CHI")
@@ -50,7 +50,7 @@ RSpec.describe NhlScoreboard::GamePicker do
     expect(picker.favorite).to eq("COL")
   end
 
-  it "rotates the other games through board 2, one per dwell" do
+  it "rotates the other games through the remaining boards, one per dwell" do
     picker = described_class.new(favorite: "COL", dwell: 10)
     games = [fav, game("a"), game("b"), game("c")]
     expect(names(picker.boards(games, now: 0))).to eq(%w[fav a])
@@ -60,7 +60,7 @@ RSpec.describe NhlScoreboard::GamePicker do
     expect(names(picker.boards(games, now: 30))).to eq(%w[fav a])
   end
 
-  it "prefers live games on board 2 while any other game is live" do
+  it "prefers live games on the remaining boards while any other game is live" do
     picker = described_class.new(favorite: "COL", dwell: 10)
     live = game("live", state: :live)
     games = [fav, game("pre"), live]
@@ -68,20 +68,20 @@ RSpec.describe NhlScoreboard::GamePicker do
     expect(names(picker.boards(games, now: 10))).to eq(%w[fav live])
   end
 
-  it "falls back to the rest on board 2 when no other game is live" do
+  it "falls back to the rest on the remaining boards when no other game is live" do
     picker = described_class.new(favorite: "COL", dwell: 10)
     games = [fav, game("p1"), game("p2")]
     expect(names(picker.boards(games, now: 0))).to eq(%w[fav p1])
     expect(names(picker.boards(games, now: 10))).to eq(%w[fav p2])
   end
 
-  it "with no favorite playing, prefers live games on board 1 and takes the next game for board 2" do
+  it "with no favorite playing, prefers live games on the first board and takes the next game for the next" do
     picker = described_class.new(favorite: "COL", dwell: 10)
     games = [game("pre"), game("live", state: :live)]
     expect(names(picker.boards(games, now: 0))).to eq(%w[live pre])
   end
 
-  it "never shows the same game on both boards" do
+  it "never shows the same game on two boards" do
     picker = described_class.new(favorite: "COL", dwell: 10)
     games = [fav, game("a"), game("b")]
     (0..60).step(5) do |t|
@@ -102,7 +102,7 @@ RSpec.describe NhlScoreboard::GamePicker do
     expect(shown.uniq).to eq([%w[a b]])
   end
 
-  it "rotates three games across two boards, never the same game on both at once" do
+  it "rotates three games across two boards, never the same game on two at once" do
     picker = described_class.new(dwell: 10)
     games = [game("a", state: :live), game("b", state: :live), game("c", state: :live)]
     seen = (0..90).step(10).map { |t| names(picker.boards(games, now: t)) }

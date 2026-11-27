@@ -1,4 +1,4 @@
-# 0007. Put the favorite team's game on board 1, rotate live games on board 2; keep the last games when reads fail
+# 0007. Put the favorite team's game on the first board, rotate the rest with live games preferred; keep the last games when reads fail
 
 - **Status:** Proposed
 - **Date:** 2026-11-26
@@ -15,14 +15,14 @@ interval per phase and leaves the loop to the caller.
 
 - **Picker (`GamePicker`).** The board count comes from the matrix: its columns across the chain
   divided by the 64-column board width (`GamePicker.board_count_for`), so 2 today and more when the
-  panels grow. The favorite team's game takes board 1 whenever it's playing today, pre-game and
+  panels grow. The favorite team's game takes the first board whenever it's playing today, pre-game and
   final included. The other boards take the rest in turn, each game holding its board for `dwell`
-  seconds (default 10), and live games come first.
+  seconds (default 10), and live games are preferred.
   - **No more games than boards:** nothing rotates. The favorite comes first, then live games, then
     the rest, in a fixed order until a game's state changes.
   - **More games than boards:** every board shows a different game. The rotation takes the live
     games when there are enough for the free boards, else live games first and then the rest.
-  - One game today takes board 1 and the other boards stay empty.
+  - One game today takes the first board and the other boards stay empty.
   The rotation position comes from the time since it started, so the picker keeps no game data.
   The favorite is set with `--favorite` or `NHL_FAVORITE_TEAM`.
 - **Polling (`MainLoop`).** The next read comes after the shortest wait the poll rule gives any
@@ -36,7 +36,7 @@ interval per phase and leaves the loop to the caller.
 ## Alternatives considered
 
 - **Only a live favorite preempts.** The first version did this, so a pre-game favorite sat in the
-  rotation. The maintainer wants the favorite on board 1 whenever it's playing today, so the
+  rotation. The maintainer wants the favorite on the first board whenever it's playing today, so the
   preference holds across the whole game.
 - **Rotate only, ignore the favorite.** Simpler, but a home-team fan would miss the game they
   care about during a busy night. Rejected.

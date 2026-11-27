@@ -51,15 +51,15 @@ bundle exec standardrb    # should be clean
 ### Running the app
 
 On the Pi, as root, with the panels wired and librgbmatrix built ([`HARDWARE.md`](HARDWARE.md)).
-It puts the favorite team's game on board 1 while it plays today, and rotates the other games through
-the other boards, live ones first (the board count follows the matrix width, two today):
+It puts the favorite team's game on the first board while it plays today, and rotates the other games
+through the remaining boards, live ones first. The board count comes from the grid:
 
 ```bash
 sudo NHL_FAVORITE_TEAM=COL "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-matrix/fonts/5x7.bdf
 ```
 
 `--favorite TRI` does the same as `NHL_FAVORITE_TEAM`, and `--dwell SECONDS` sets how long each
-game holds its board (10 by default). The boards default to a full grid of the panels (two today);
+game holds its board (10 by default). The boards default to a full grid of the panels;
 `--boards N --columns N` lays out another grid, such as 7 boards in 4 columns, if it fits the panels. It reads the NHL through `sports_ingest`, which the Pi
 must reach over the network. C1-07 (#8) adds the Pi service that starts it on boot.
 
@@ -89,7 +89,7 @@ script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 -
 
 Add `--demo countdown` to play the state out in the browser, one second per frame: the clock counts
 down to 00:00. `--demo home-logos` cycles the home team through every logo. `--demo ticker` scrolls
-the latest goal across the band under both boards, a column every tenth of a second. All need `--serve` and
+the latest goal across the band under the boards, a column every tenth of a second. All need `--serve` and
 `--frame scoreboard`:
 
 ```bash

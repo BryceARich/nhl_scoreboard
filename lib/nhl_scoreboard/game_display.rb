@@ -50,7 +50,7 @@ module NhlScoreboard
     # Draws the games on the offscreen canvas, each on its board, with each row's ticker showing that
     # row's latest goal, then swaps the canvas onto the matrix.
     #
-    # @param states [Array<GameState>, GameState] the games, board 1 first; one state is one board.
+    # @param states [Array<GameState>, GameState] the games, first board first; one state is one board.
     # @param step [Integer] how far the goal tickers have scrolled; the caller advances it.
     # @return [Canvas, FakeCanvas] the canvas now showing.
     # @raise [ArgumentError] if there are more games than the grid has boards, or the grid is bigger than the canvas.

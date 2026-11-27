@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 module NhlScoreboard
-  # Chooses the games for the boards (C1-06). +board_count+ comes from the board grid (see
-  # {BoardGrid}). The favorite team's game, while
-  # it's playing today, always takes board 1, pre-game and final included. The other boards take
-  # other games in turn, each game holding its board for +dwell+ seconds, and live games come first.
+  # Chooses the games for the boards (C1-06), for any number of boards: +board_count+ comes from the
+  # board grid (see {BoardGrid}). The first board is the favorite team's preference: while the
+  # favorite plays today, its game takes the first board, pre-game and final included. The other
+  # boards rotate through the remaining games, each game holding its board for +dwell+ seconds, and
+  # live games are preferred.
   #
   # The rules, in order:
   # - **Games at or below the board count:** nothing rotates. The favorite comes first, then live
@@ -52,7 +53,7 @@ module NhlScoreboard
       @rotation_started_at = nil
     end
 
-    # The games to show now, board 1 first.
+    # The games to show now, first board first.
     #
     # @param games [Array<#live?, #home_team, #away_team>] today's games.
     # @param now [Numeric] the current time in seconds, on one clock for every call (such as

@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Runs the scoreboard on the panels, unattended (C1-06). The favorite team's game takes board 1
-# while it plays today, and the other boards rotate the rest, live games first. Each row of boards
+# Runs the scoreboard on the panels, unattended (C1-06). The favorite team's game takes the first
+# board while it plays today, and the other boards rotate the rest, live games first. Each row of boards
 # has its own goal ticker under it. The boards default to a full grid of the panels; --boards and
 # --columns lay out a different number, such as 7 boards in 4 columns. Run it on the Pi as root,
 # since the library needs GPIO access; docs/RESUME.md has the setup.
@@ -17,7 +17,7 @@ require_relative "../lib/nhl_scoreboard"
 options = {favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/scoreboard path/to/font.bdf [options]"
-  opts.on("--favorite TRI", "favorite team's code, such as COL; its game takes board 1 while it plays today (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
+  opts.on("--favorite TRI", "favorite team's code, such as COL; its game takes the first board while it plays today (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
   opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
   opts.on("--boards N", Integer, "how many boards (default: a full grid of the panels)") { |n| options[:boards] = n }
   opts.on("--columns N", Integer, "boards per row (default: all on one row)") { |n| options[:columns] = n }

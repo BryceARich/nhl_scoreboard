@@ -17,8 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   per team), so the text can slide from one board to the next (ADR 0006). Each board is 64 × 24
   for its scoreboard; `ScoreboardLayout#draw` takes `x:` for the board's column. `GameDisplay#show`
   takes a list of states, one board each, and `step:` and `ticker:`. `bin/fake_panels --demo ticker`
-  shows two games with the ticker across both.
-- Main loop (C1-06): `GamePicker` puts the favorite team's game on board 1 while it plays today
+  shows games with the ticker across the boards.
+- Main loop (C1-06): `GamePicker` puts the favorite team's game on the first board while it plays today
   (`--favorite`, or `NHL_FAVORITE_TEAM`), and rotates the other games through the remaining boards
   for `--dwell` seconds, live ones first. The board count comes from the matrix width, so it
   follows the panels. With no more games than boards, nothing rotates, and no two boards show the

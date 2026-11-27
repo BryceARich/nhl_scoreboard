@@ -43,8 +43,8 @@ text sliding from one row into the next makes little sense when the rows are dif
 
 ## Consequences
 
-- The hardware (two boards, one row, 128 × 32 panels) is the default: `BoardGrid.for_canvas` gives
-  two boards in one row, with the same ticker band it has now.
+- The default is a full grid of the panels: `BoardGrid.for_canvas` fills the canvas with as many
+  boards as fit, each row with its own ticker band.
 - A grid that doesn't fit the panels is refused with a message, not drawn clipped.
 - Orientation (rotated panels) isn't handled. A rotation would be a transform applied to the
   rectangle, which the grid can take later without changing how a board is drawn.

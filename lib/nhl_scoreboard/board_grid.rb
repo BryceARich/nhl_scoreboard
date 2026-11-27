@@ -51,7 +51,7 @@ module NhlScoreboard
     # @param columns [Integer] boards per row; a positive Integer.
     # @raise [ArgumentError] if either isn't a positive Integer.
     # @example
-    #   NhlScoreboard::BoardGrid.new(boards: 2, columns: 2) # two side by side, one row
+    #   NhlScoreboard::BoardGrid.new(boards: 3, columns: 2) # two on top, one below
     def initialize(boards:, columns:)
       raise ArgumentError, "boards must be a positive Integer, got #{boards.inspect}" unless positive_integer?(boards)
       raise ArgumentError, "columns must be a positive Integer, got #{columns.inspect}" unless positive_integer?(columns)
