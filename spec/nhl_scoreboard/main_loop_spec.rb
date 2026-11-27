@@ -175,16 +175,20 @@ RSpec.describe NhlScoreboard::MainLoop do
     layout = Object.new.tap { |nothing| nothing.define_singleton_method(:draw) { |*, **| nil } }
     real = NhlScoreboard::GameDisplay.new(matrix, layout, {}, ticker: NhlScoreboard::GoalTicker.new(font),
       grid: NhlScoreboard::BoardGrid.new(boards: 1, columns: 1))
-    loop_ = described_class.new(source: -> { [live] }, display: real, picker: NhlScoreboard::GamePicker.new(dwell: 10),
-      poll_interval: ->(_game) { 60 }, logger: logger)
+    # The goal is scored after the game first shows, so it scrolls; goals there at the first read are history.
+    current = live.with(goals: [])
+    loop_ = described_class.new(source: -> { [current] }, display: real, picker: NhlScoreboard::GamePicker.new(dwell: 10),
+      poll_interval: ->(_game) { 1 }, logger: logger)
     band_lit = -> {
       canvas = matrix.canvas
       (24...32).any? { |y| (0...64).any? { |x| canvas.pixel(x, y).any?(&:positive?) } }
     }
 
     loop_.tick(0)
-    expect(band_lit.call).to be(false) # the text enters from the band's right edge
-    loop_.tick(3)
+    current = live
+    loop_.tick(1) # the read sees the goal at step 10; it enters from the right edge at step 0
+    expect(band_lit.call).to be(false)
+    loop_.tick(3) # step 30: 20 columns in
     expect(band_lit.call).to be(true)
   end
 

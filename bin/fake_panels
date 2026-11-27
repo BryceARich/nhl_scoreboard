@@ -80,7 +80,8 @@ if options[:frame] == "scoreboard"
     abort e.message
   end
   ticker = NhlScoreboard::GoalTicker.new(font)
-  display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load, ticker: ticker)
+  display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load, ticker: ticker,
+    scroll_history: options[:demo] == "ticker")
   # The boards come from the canvas, so a wider canvas shows more games, one per board.
   second = state.with(home_team: NhlScoreboard::GameState::Team.new(tri_code: "VGK", score: 2),
     away_team: NhlScoreboard::GameState::Team.new(tri_code: "CHI", score: 1), clock: "07:45", goals: [])

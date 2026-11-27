@@ -115,7 +115,8 @@ The format and the frame rule are in [ADR 0019](adr/0019-replay-recordings-one-f
 A whole night goes through the main loop with `bin/replay_night`. Put one recording (`.jsonl`) or play-by-play
 payload (`.json`) per game in a directory outside the repo. `--panels` sets the boards, `--columns` the boards per
 row. Give lists (`--panels 2,4 --columns 1,2`) to try every layout that fits: `--png` writes one frame per layout at
-`--at` seconds, and `--serve` plays the layouts in turn, each for `--hold` seconds:
+`--at` seconds, and `--serve` plays the layouts in turn, each for the whole night (or `--hold` seconds).
+`--serve --favorite COL --from-period 2` starts the night when COL's game reaches period 2:
 
 ```bash
 script/claude/run bin/replay_night ~/rpi-rgb-led-matrix/fonts/5x7.bdf ~/games/2026-11-25 --panels 6 --columns 3 --serve 8080

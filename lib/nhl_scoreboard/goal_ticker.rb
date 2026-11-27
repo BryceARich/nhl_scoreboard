@@ -70,6 +70,41 @@ module NhlScoreboard
       nil
     end
 
+    # The number of steps a goal takes to scroll once across its band and out at the left edge: the
+    # text's width plus the band's. {#draw_once} takes its steps from zero to here.
+    #
+    # @param canvas [Canvas, FakeCanvas] the canvas to measure on.
+    # @param goal [#tri_code, #scorer, #clock, #period] the goal.
+    # @param top [Integer] the band's first row.
+    # @param width [Integer] the band's width in columns.
+    # @return [Integer] the steps from the right edge until the text has left the band.
+    # @example
+    #   ticker.span(canvas, goal, top: 24, width: 64) # => 214
+    def span(canvas, goal, top: @top, width: canvas.width)
+      text_width(canvas, text_for(goal), top) + width
+    end
+
+    # Draws a goal once, scrolling it from the band's right edge at step 0 to its left. Draws nothing
+    # before step 0 or once the text has left the band, so the caller can drop the goal then. Like
+    # {#draw}, the canvas isn't cleared.
+    #
+    # @param canvas [Canvas, FakeCanvas] the canvas to draw on.
+    # @param goal [#tri_code, #scorer, #clock, #period, nil] the goal, or nil for none.
+    # @param step [Integer] how many columns the text has scrolled since it entered.
+    # @param x [Integer] the band's left column.
+    # @param top [Integer] the band's first row.
+    # @param width [Integer] the band's width in columns.
+    # @return [nil]
+    # @example
+    #   ticker.draw_once(canvas, goal, step: 0, x: 0, top: 24, width: 64)
+    def draw_once(canvas, goal, step:, x: 0, top: @top, width: canvas.width)
+      return nil unless goal && step >= 0 && step < span(canvas, goal, top: top, width: width)
+
+      canvas.draw_text(font, x + width - step, baseline(top), *TeamColors.rgb_for(goal.tri_code), text_for(goal))
+      clear_outside(canvas, x, width, top)
+      nil
+    end
+
     # The text the ticker scrolls for one goal: the team and scorer, when, and in which period. A goal
     # by the favorite team reads as a shout instead.
     #
