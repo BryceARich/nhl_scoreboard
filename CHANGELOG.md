@@ -18,6 +18,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Game state `OVER` (C1-13): a finished game whose NHL state code is `OVER` (game 2026020403) now
+  reads as final, so it shows `FINAL` on the boards and leaves the live rotation. The `sports_ingest`
+  pin moves to `8b5d905` (BryceARich/sports_ingest#122, fixing #121), which maps `OVER` to `:final`;
+  before, the gem read it as `:unknown`. Specs use a synthetic fixture (`spec/fixtures/over_game.json`).
+  Build order: C1-13.
+
 - Delay (C1-12): `bin/scoreboard --delay SECONDS` and `bin/replay_night --delay SECONDS` hold the
   boards back from the feed, so they line up with a TV broadcast that runs behind. `DelayedGames`
   keeps each read with its collection time, and `MainLoop` shows the newest read at least `delay`

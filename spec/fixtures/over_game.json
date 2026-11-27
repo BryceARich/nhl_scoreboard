@@ -1,0 +1,16 @@
+{
+  "id": 2099999901,
+  "season": 20262027,
+  "gameType": 2,
+  "gameDate": "2026-11-27",
+  "startTimeUTC": "2026-11-28T00:00:00Z",
+  "gameState": "OVER",
+  "gameScheduleState": "OK",
+  "neutralSite": false,
+  "venue": {"default": "Synthetic Arena"},
+  "gameOutcome": {"lastPeriodType": "OT"},
+  "periodDescriptor": {"number": 4, "periodType": "OT"},
+  "clock": {"secondsRemaining": 0, "running": false, "inIntermission": false},
+  "homeTeam": {"id": 1, "abbrev": "COL", "score": 3, "sog": 30},
+  "awayTeam": {"id": 2, "abbrev": "CHI", "score": 2, "sog": 28}
+}
