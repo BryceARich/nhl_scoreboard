@@ -18,6 +18,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Goal ticker text (C1-10): each goal scrolls as "Goal (TRI) scorer clock Pn". A goal by the
+  favorite team (`--favorite`, `NHL_FAVORITE_TEAM`) scrolls as "{Team name} GOAL!!!", for example
+  "Avalanche GOAL!!!" (`TeamNames`). `GoalTicker` takes `favorite:`.
+- Replay start (C1-10): `bin/replay_night --from-period 2` starts the night when the favorite's game
+  reaches that period (`NightReplay#seconds_into_period`). It needs `--serve` and a favorite.
 - Board grid (C1-06): `BoardGrid` places boards on a grid of any size, with
   `columns` to a row, and each row of boards gets its own goal ticker under it, sized to that row
   (ADR 0007, which supersedes ADR 0006's band across the whole canvas). `ScoreboardLayout#draw`

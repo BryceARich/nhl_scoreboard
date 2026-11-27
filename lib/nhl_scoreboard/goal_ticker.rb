@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "team_colors"
+require_relative "team_names"
 
 module NhlScoreboard
   # The goal ticker: one goal's text scrolling from right to left across a band of rows, in the
@@ -28,16 +29,22 @@ module NhlScoreboard
     # @return [Integer] the default band's height, in rows.
     attr_reader :height
 
+    # @return [String, nil] the favorite team's tri-code, upcased, or nil for none.
+    attr_reader :favorite
+
     # @param font [BdfFont, Font] the font for the goal text.
     # @param top [Integer] the default band's first row.
     # @param height [Integer] the default band's height, in rows; the text is centred in it.
+    # @param favorite [String, nil] the favorite team's tri-code. A goal by that team reads
+    #   "{Team name} GOAL!!!"; nil or another team's goal reads "Goal (TRI) scorer clock Pn".
     # @return [GoalTicker]
     # @example
-    #   NhlScoreboard::GoalTicker.new(NhlScoreboard::BdfFont.load("fonts/5x7.bdf"))
-    def initialize(font, top: DEFAULT_TOP, height: DEFAULT_HEIGHT)
+    #   NhlScoreboard::GoalTicker.new(NhlScoreboard::BdfFont.load("fonts/5x7.bdf"), favorite: "COL")
+    def initialize(font, top: DEFAULT_TOP, height: DEFAULT_HEIGHT, favorite: nil)
       @font = font
       @top = top
       @height = height
+      @favorite = favorite&.upcase
     end
 
     # Draws a goal's text in a band, scrolled by `step` columns, in the scoring team's colour. Draws
@@ -63,17 +70,27 @@ module NhlScoreboard
       nil
     end
 
-    # The text the ticker scrolls for one goal: who scored, when, and in which period.
+    # The text the ticker scrolls for one goal: the team and scorer, when, and in which period. A goal
+    # by the favorite team reads as a shout instead.
     #
-    # @param goal [#scorer, #clock, #period] the goal.
-    # @return [String] for example "MacKinnon 03:21 P2".
+    # @param goal [#tri_code, #scorer, #clock, #period] the goal.
+    # @return [String] for example "Goal (COL) MacKinnon 03:21 P2", or "Avalanche GOAL!!!" for the
+    #   favorite.
     # @example
-    #   ticker.text_for(goal) # => "MacKinnon 03:21 P2"
+    #   ticker.text_for(goal) # => "Goal (COL) MacKinnon 03:21 P2"
     def text_for(goal)
-      "#{goal.scorer} #{goal.clock} P#{goal.period}"
+      return "#{TeamNames.name_for(goal.tri_code)} GOAL!!!" if favorite_goal?(goal)
+
+      "Goal (#{goal.tri_code}) #{goal.scorer} #{goal.clock} P#{goal.period}"
     end
 
     private
+
+    # @param goal [#tri_code] the goal.
+    # @return [Boolean] true when the favorite team scored it.
+    def favorite_goal?(goal)
+      !favorite.nil? && goal.tri_code.to_s.upcase == favorite
+    end
 
     # The baseline that centres the font's glyphs vertically in a band.
     #

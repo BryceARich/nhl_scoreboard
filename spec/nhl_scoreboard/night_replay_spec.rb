@@ -17,6 +17,19 @@ RSpec.describe NhlScoreboard::NightReplay do
 
   let(:night) { described_class.new([game(base, "COL"), game(base + 600, "VGK"), game(base + 1800, "NJD")]) }
 
+  describe "#seconds_into_period" do
+    it "gives the moment a team's game reaches the period, as seconds into the night" do
+      seconds = night.seconds_into_period("COL", 2)
+      expect(seconds).to be_a(Float)
+      expect(night.states_at(seconds).find { |state| state.home_team.tri_code == "COL" }.period).to be >= 2
+    end
+
+    it "is nil for a team not playing tonight, or a period no game reaches" do
+      expect(night.seconds_into_period("TOR", 1)).to be_nil
+      expect(night.seconds_into_period("COL", 9)).to be_nil
+    end
+  end
+
   describe "#states_at" do
     it "starts at the first game and adds each game as it starts" do
       expect(night.states_at(0).map { |state| state.home_team.tri_code }).to eq(["COL"])

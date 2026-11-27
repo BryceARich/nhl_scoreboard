@@ -51,7 +51,8 @@ RSpec.describe NhlScoreboard::GoalTicker do
     ticker.draw(canvas, goal, step: 11)
     second = lit_pixels(canvas)
     expect(first).not_to be_empty
-    expect(second.map { |x, y, rgb| [x + 1, y, rgb] }).to eq(first)
+    # The text runs past the right edge, so compare only the columns both frames show.
+    expect(second.map { |x, y, rgb| [x + 1, y, rgb] }.select { |x, _, _| x < 128 }).to eq(first.select { |x, _, _| x < 128 })
   end
 
   it "runs the text across the whole canvas width, so it can cross a board edge" do
@@ -62,7 +63,22 @@ RSpec.describe NhlScoreboard::GoalTicker do
     expect(lit_pixels(canvas).map(&:first).min).to be < 64
   end
 
-  it "describes the goal by scorer, clock and period" do
-    expect(ticker.text_for(goal(scorer: "MacKinnon", clock: "03:21", period: 2))).to eq("MacKinnon 03:21 P2")
+  it "describes the goal by team, scorer, clock and period" do
+    expect(ticker.text_for(goal(tri_code: "COL", scorer: "MacKinnon", clock: "03:21", period: 2))).to eq("Goal (COL) MacKinnon 03:21 P2")
+  end
+
+  it "shouts the favorite team's goal by its team name" do
+    favorite = described_class.new(font, favorite: "col")
+    expect(favorite.text_for(goal(tri_code: "COL", scorer: "MacKinnon"))).to eq("Avalanche GOAL!!!")
+  end
+
+  it "describes another team's goal normally when a favorite is set" do
+    favorite = described_class.new(font, favorite: "COL")
+    expect(favorite.text_for(goal(tri_code: "CHI", scorer: "Kane", clock: "01:02", period: 3))).to eq("Goal (CHI) Kane 01:02 P3")
+  end
+
+  it "names a team by its nickname, with the full name for a two-word team" do
+    expect(NhlScoreboard::TeamNames.name_for("VGK")).to eq("Golden Knights")
+    expect(NhlScoreboard::TeamNames.name_for("XYZ")).to eq("XYZ")
   end
 end

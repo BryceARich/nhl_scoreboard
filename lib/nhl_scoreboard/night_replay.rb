@@ -53,9 +53,34 @@ module NhlScoreboard
       end
     end
 
+    # When a team's game first reaches a period, as seconds into the night. Used to start the night
+    # part-way through (`bin/replay_night --from-period`).
+    #
+    # @param tri_code [String] the team's code, such as "COL"; matched against either side of each game.
+    # @param period [Integer] the period, such as 2.
+    # @return [Float, nil] seconds from {#origin} to that game's first snapshot in the period or later,
+    #   or nil if no game with that team reaches it.
+    # @example
+    #   night.seconds_into_period("COL", 2) # => 5400.0
+    def seconds_into_period(tri_code, period)
+      starts = @games.filter_map do |snapshots|
+        snapshots.find { |snapshot| team_in?(snapshot.state, tri_code) && snapshot.state.period.to_i >= period }&.at
+      end
+      starts.min && (starts.min - origin)
+    end
+
     # @return [Float] seconds from {#origin} until the last game's last snapshot.
     def duration
       @games.map { |snapshots| snapshots.last.at }.max - origin
+    end
+
+    private
+
+    # @param state [GameState] a game's state.
+    # @param tri_code [String] a team's code.
+    # @return [Boolean] true when the team plays in the game.
+    def team_in?(state, tri_code)
+      state.home_team.tri_code == tri_code || state.away_team.tri_code == tri_code
     end
   end
 end

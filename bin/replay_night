@@ -94,6 +94,7 @@ parser = OptionParser.new do |opts|
   opts.on("--hardware", "play on the real panels, one layout sized to them, as bin/scoreboard does (run as root on the Pi)") { options[:hardware] = true }
   opts.on("--png FILE", "write one frame per layout as a PNG instead of playing") { |file| options[:png] = file }
   opts.on("--at SECONDS", Float, "with --png, the frame this many seconds into the night (default 0)") { |s| options[:at] = s }
+  opts.on("--from-period N", Integer, "with --serve and --favorite, start the night when the favorite's game reaches period N, such as 2") { |n| options[:from_period] = n }
 end
 parser.parse!
 
@@ -139,6 +140,15 @@ end
 
 logos = NhlScoreboard::LogoLibrary.load
 
+# --from-period: the night starts when the favorite's game reaches that period, so every game
+# starts from the same moment. Games that started earlier show their state at that moment.
+offset = 0.0
+if options[:from_period]
+  abort "--from-period needs --serve and a favorite (--favorite or $NHL_FAVORITE_TEAM)" unless options[:serve] && options[:favorite]
+  offset = night.seconds_into_period(options[:favorite].upcase, options[:from_period]) ||
+    abort("#{options[:favorite].upcase} never reaches period #{options[:from_period]} in these games")
+end
+
 if options[:hardware]
   # The real panels: one layout, sized to them, with the same loop as the fake panels. Run as root.
   abort "--hardware needs one layout; give one --panels and one --columns" unless layouts.size == 1
@@ -152,7 +162,7 @@ if options[:hardware]
   begin
     NhlScoreboard::Matrix.open(settings) do |matrix|
       display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), logos,
-        ticker: NhlScoreboard::GoalTicker.new(font), grid: grid)
+        ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       elapsed = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) - started }
       NhlScoreboard::MainLoop.new(
@@ -178,7 +188,7 @@ build_layout = lambda do |panels, columns|
   settings = NhlScoreboard::MatrixSettings.new(rows: grid.height, cols: grid.width, chain_length: 1)
   matrix = NhlScoreboard::FakeMatrix.new(settings)
   display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), logos,
-    ticker: NhlScoreboard::GoalTicker.new(font), grid: grid)
+    ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
   picker = NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards)
   [display, picker]
 end
@@ -199,7 +209,7 @@ else
   scale = 7
   first_display, first_picker = build_layout.call(*layouts.first)
   server = NhlScoreboard::PreviewServer.new(port: options[:serve])
-  server.publish(first_display.show(first_picker.boards(night.states_at(0), now: 0)), scale: scale)
+  server.publish(first_display.show(first_picker.boards(night.states_at(offset), now: offset)), scale: scale)
   listener = server.listen
   Thread.new do
     # Each layout plays the night from its start for --hold seconds, then the next, forever.
@@ -207,16 +217,17 @@ else
       layouts.each do |panels, columns|
         display, picker = build_layout.call(panels, columns)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        elapsed = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) - started }
+        real = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) - started }
+        night_time = -> { offset + real.call }
         loop_ = NhlScoreboard::MainLoop.new(
-          source: -> { night.states_at(elapsed.call) },
+          source: -> { night.states_at(night_time.call) },
           display: BrowserDisplay.new(display, server, scale),
           picker: picker,
           poll_interval: ->(_game) { 1 },
-          clock: elapsed
+          clock: night_time
         )
-        while elapsed.call < options[:hold]
-          sleep(loop_.tick(elapsed.call))
+        while real.call < options[:hold]
+          sleep(loop_.tick(night_time.call))
         end
       end
     end
