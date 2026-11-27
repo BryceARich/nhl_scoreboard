@@ -5,13 +5,13 @@ require_relative "../../lib/nhl_scoreboard"
 RSpec.describe NhlScoreboard::LogoLibrary do
   let(:logos) { described_class.load }
 
-  it "loads all 34 team logos, each pre-sized to 20×20" do
-    expect(logos.size).to eq(34)
+  it "loads all 33 team logos, each pre-sized to 20×20" do
+    expect(logos.size).to eq(33)
     expect(logos.values.map { |logo| [logo.width, logo.height] }.uniq).to eq([[20, 20]])
   end
 
   it "names each logo after its file" do
-    expect(logos).to include("avalanche", "wings", "mapleleafs", "kraken", "mammoth")
+    expect(logos).to include("avalanche", "redwings", "mapleleafs", "kraken", "mammoth")
   end
 
   it "draws every logo onto the 128×32 canvas" do
