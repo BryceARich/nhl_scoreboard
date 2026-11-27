@@ -150,3 +150,7 @@ Panels, wiring, matrix options and the librgbmatrix build are in [`HARDWARE.md`]
 - **Pi 5:** upstream's support statements conflict. Prefer an older model until tested.
 - **GPIO slowdown is a runtime option** in the C API (`RGBLedRuntimeOptions`); rows, chain and
   mapping are in `RGBLedMatrixOptions`.
+- **A ticket's branch lives in one worktree.** `git switch` refuses a branch checked out elsewhere;
+  see [WORKTREES](WORKTREES.md).
+- **Game data goes outside the repo, and a Mac needs `SSL_CERT_FILE` to fetch it.** See
+  [GAME_DATA](GAME_DATA.md).
