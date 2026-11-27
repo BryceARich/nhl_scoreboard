@@ -34,9 +34,10 @@ RSpec.describe NhlScoreboard::GameDisplay do
     goal = NhlScoreboard::GameState::Goal.new(tri_code: "CHI", period: 1, clock: "12:34", scorer: "ILL")
     wide = NhlScoreboard::FakeMatrix.new(NhlScoreboard::MatrixSettings.new(rows: 32, cols: 64, chain_length: 2))
     grid = NhlScoreboard::BoardGrid.new(boards: 2, columns: 2)
-    shown_display = described_class.new(wide, NhlScoreboard::ScoreboardLayout.new(font), logos, ticker: ticker, grid: grid)
+    shown_display = described_class.new(wide, NhlScoreboard::ScoreboardLayout.new(font), logos, ticker: ticker, grid: grid, scroll_history: true)
     lit = state(home: "COL", away: "CHI").with(goals: [goal])
-    shown = shown_display.show(lit, step: 10)
+    shown_display.show(lit, step: 10) # the goal is queued at step 10
+    shown = shown_display.show(lit, step: 50) # and has scrolled 40 columns in by step 50
     colour = NhlScoreboard::TeamColors.rgb_for("CHI")
     right = (64...128).flat_map { |x| (0...32).map { |y| shown.pixel(x, y) } }
     expect(right).to include(colour)
@@ -61,8 +62,12 @@ RSpec.describe NhlScoreboard::GameDisplay do
     grid = NhlScoreboard::BoardGrid.new(boards: 3, columns: 2)
     tall = NhlScoreboard::FakeMatrix.new(NhlScoreboard::MatrixSettings.new(rows: 64, cols: 64, chain_length: 2))
     goal = NhlScoreboard::GameState::Goal.new(tri_code: "CHI", period: 1, clock: "12:34", scorer: "ILL")
-    games = [state(home: "COL", away: "CHI"), state(home: "VGK", away: "CHI"), state(home: "TOR", away: "BOS").with(goals: [goal])]
-    shown = described_class.new(tall, NhlScoreboard::ScoreboardLayout.new(font), logos, ticker: ticker, grid: grid).show(games, step: 20)
+    games = [state(home: "COL", away: "CHI"), state(home: "VGK", away: "CHI"), state(home: "TOR", away: "BOS")]
+    display = described_class.new(tall, NhlScoreboard::ScoreboardLayout.new(font), logos, ticker: ticker, grid: grid, scroll_history: true)
+    display.show(games, step: 20)
+    games[2] = games[2].with(goals: [goal])
+    display.show(games, step: 20) # the goal is queued here, at step 20
+    shown = display.show(games, step: 60) # so at step 60 it has scrolled 40 columns in
     top_band = (0...128).flat_map { |x| (24...32).map { |y| shown.pixel(x, y) } }
     bottom_band = (0...64).flat_map { |x| (56...64).map { |y| shown.pixel(x, y) } }
     expect(top_band.uniq).to eq([[0, 0, 0]])
@@ -74,11 +79,59 @@ RSpec.describe NhlScoreboard::GameDisplay do
     grid = NhlScoreboard::BoardGrid.new(boards: 3, columns: 2)
     tall = NhlScoreboard::FakeMatrix.new(NhlScoreboard::MatrixSettings.new(rows: 64, cols: 64, chain_length: 2))
     goal = NhlScoreboard::GameState::Goal.new(tri_code: "CHI", period: 1, clock: "12:34", scorer: "ILL")
-    lone = state(home: "TOR", away: "BOS").with(goals: [goal])
+    lone = state(home: "TOR", away: "BOS")
+    display = described_class.new(tall, NhlScoreboard::ScoreboardLayout.new(font), logos, ticker: ticker, grid: grid, scroll_history: true)
+    games = [state(home: "COL", away: "CHI"), state(home: "VGK", away: "CHI"), lone]
+    display.show(games, step: 0)
+    games[2] = lone.with(goals: [goal])
     (0..200).step(10).each do |step|
-      shown = described_class.new(tall, NhlScoreboard::ScoreboardLayout.new(font), logos, ticker: ticker, grid: grid).show([state(home: "COL", away: "CHI"), state(home: "VGK", away: "CHI"), lone], step: step)
+      shown = display.show(games, step: step)
       empty_cells = (64...128).flat_map { |x| (56...64).map { |y| shown.pixel(x, y) } }
       expect(empty_cells.uniq).to eq([[0, 0, 0]])
+    end
+  end
+
+  describe "the goal queue (C1-10)" do
+    let(:ticker) { NhlScoreboard::GoalTicker.new(font) }
+    let(:wide_matrix) { NhlScoreboard::FakeMatrix.new(NhlScoreboard::MatrixSettings.new(rows: 32, cols: 64, chain_length: 2)) }
+    let(:grid) { NhlScoreboard::BoardGrid.new(boards: 2, columns: 2) }
+    let(:chi_goal) { NhlScoreboard::GameState::Goal.new(tri_code: "CHI", period: 1, clock: "12:34", scorer: "ILL") }
+    let(:col_goal) { NhlScoreboard::GameState::Goal.new(tri_code: "COL", period: 2, clock: "03:00", scorer: "Rantanen") }
+    let(:plain) { state(home: "COL", away: "CHI") }
+
+    def queue_display
+      described_class.new(wide_matrix, NhlScoreboard::ScoreboardLayout.new(font), logos, ticker: ticker, grid: grid)
+    end
+
+    # Every colour lit in the band under the boards, across the top row of the canvas.
+    def band_colours(shown)
+      (0...128).flat_map { |x| (24...32).map { |y| shown.pixel(x, y) } }.uniq
+    end
+
+    it "doesn't scroll goals a game already had when it first appeared" do
+      display = queue_display
+      display.show(plain.with(goals: [chi_goal]), step: 0)
+      expect(band_colours(display.show(plain.with(goals: [chi_goal]), step: 30))).to eq([[0, 0, 0]])
+    end
+
+    it "scrolls a goal scored later once, then drops it after it has left the band" do
+      display = queue_display
+      display.show(plain, step: 0)
+      display.show(plain.with(goals: [chi_goal]), step: 0)
+      expect(band_colours(display.show(plain.with(goals: [chi_goal]), step: 20))).to include(NhlScoreboard::TeamColors.rgb_for("CHI"))
+      expect(band_colours(display.show(plain.with(goals: [chi_goal]), step: 1000))).to eq([[0, 0, 0]])
+    end
+
+    it "starts the next goal once the last one's text and a space have passed the right edge" do
+      display = queue_display
+      display.show(plain, step: 0)
+      both = plain.with(goals: [chi_goal, col_goal])
+      display.show(both, step: 0)
+      canvas = NhlScoreboard::FakeCanvas.new(width: 128, height: 32)
+      start = ticker.advance(canvas, chi_goal, top: 24) + ticker.gap_width
+      col = NhlScoreboard::TeamColors.rgb_for("COL")
+      expect(band_colours(display.show(both, step: start - 1))).not_to include(col)
+      expect(band_colours(display.show(both, step: start + 20))).to include(col)
     end
   end
 

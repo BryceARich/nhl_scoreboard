@@ -11,6 +11,9 @@ module NhlScoreboard
   # - **Offline tolerance:** when a read fails, the loop keeps the last good games on the panels,
   #   retries after a backoff that doubles from {RETRY_SECONDS} up to {RETRY_MAX_SECONDS}, and
   #   logs the failure. It never exits on a read error (ADR 0007).
+  # - **Scroll clock (C1-10):** the loop wakes every {SCROLL_SECONDS} and redraws, and the goal ticker
+  #   moves one column per wake, so the text scrolls ten columns a second. Reads and rotation
+  #   still follow their own times, not the wake-ups (ADR 0025).
   # - **Unattended:** a Ruby error in drawing is not rescued; the process exits and its service
   #   manager restarts it (C1-07).
   #
@@ -31,8 +34,9 @@ module NhlScoreboard
     # @return [Integer] the longest wait between retries while the source stays down.
     RETRY_MAX_SECONDS = 300
 
-    # @return [Integer] the shortest sleep, so a zero wait can't spin the CPU.
-    MIN_SLEEP_SECONDS = 1
+    # @return [Float] seconds between wake-ups, and so between draws: the goal ticker scrolls one
+    #   column per wake. The same rate as `bin/fake_panels --demo ticker`.
+    SCROLL_SECONDS = 0.1
 
     # @return [#call] returns the day's games, such as `-> { SportsIngest::NHL.scores }`.
     attr_reader :source
@@ -44,7 +48,7 @@ module NhlScoreboard
     attr_reader :picker
 
     # @param source [#call] returns the day's games (an Array of game objects); raises on failure.
-    # @param display [GameDisplay, #show] draws a game with +show(game)+.
+    # @param display [GameDisplay, #show] draws the boards with +show(boards, step:)+, where +step+ is the ticker's scroll step.
     # @param picker [GamePicker] chooses which game to show.
     # @param poll_interval [#call] given a game, returns seconds until it should be read again, or
     #   nil when it needs no more reads.
@@ -76,21 +80,32 @@ module NhlScoreboard
       loop { sleeper.call(tick(@clock.call)) }
     end
 
-    # One pass: read the games if one is due, draw the games the picker chooses, and say how long to
-    # sleep before the next pass.
+    # One pass: read the games if one is due, draw the games the picker chooses with the ticker's
+    # scroll step, and say how long to sleep before the next pass.
     #
-    # @param now [Numeric] the current time, on the same clock as +clock+.
-    # @return [Numeric] seconds to sleep, at least {MIN_SLEEP_SECONDS}.
+    # @param now [Numeric] the current time, on the same clock as +clock+. The first call starts the
+    #   scroll clock.
+    # @return [Float] seconds to sleep: {SCROLL_SECONDS}.
     # @example
-    #   loop.tick(0) # => 10
+    #   loop.tick(0) # => 0.1
     def tick(now)
+      @scroll_started_at ||= now
       read(now) if @next_read_at.nil? || now >= @next_read_at
       boards = picker.boards(@games, now: now)
-      display.show(boards) unless boards.empty?
-      sleep_for(now)
+      display.show(boards, step: scroll_step(now)) unless boards.empty?
+      SCROLL_SECONDS
     end
 
     private
+
+    # How far the goal ticker has scrolled: one column per {SCROLL_SECONDS} since the first tick.
+    #
+    # @param now [Numeric] the current time.
+    # @return [Integer] the scroll step, in columns. Rounded before the floor, so float error
+    #   (3 × 0.1 comes out just under 0.3) can't cost a column.
+    def scroll_step(now)
+      ((now - @scroll_started_at) / SCROLL_SECONDS).round(6).floor
+    end
 
     # Reads the games and sets when the next read is due. A failure keeps the last good games.
     #
@@ -111,13 +126,6 @@ module NhlScoreboard
     def next_poll_seconds
       waits = @games.filter_map { |game| @poll_interval.call(game) }
       waits.empty? ? IDLE_SECONDS : waits.min
-    end
-
-    # @param now [Numeric] the current time.
-    # @return [Numeric] seconds until the next read or the next rotation, whichever is sooner.
-    def sleep_for(now)
-      until_read = @next_read_at ? @next_read_at - now : picker.dwell
-      [until_read, picker.dwell].min.clamp(MIN_SLEEP_SECONDS..)
     end
   end
 end

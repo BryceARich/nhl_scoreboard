@@ -43,7 +43,7 @@ font = NhlScoreboard::Font.load(font_path)
 begin
   NhlScoreboard::Matrix.open(settings) do |matrix|
     display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load,
-      ticker: NhlScoreboard::GoalTicker.new(font), grid: grid)
+      ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
     loop_ = NhlScoreboard::MainLoop.new(
       source: -> { SportsIngest::NHL.scores },
       display: display,

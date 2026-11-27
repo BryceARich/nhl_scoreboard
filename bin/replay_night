@@ -11,7 +11,7 @@
 # row (--columns). Give lists to try several layouts: every panel count is paired with every column
 # count that fits it, so --panels 2,4 --columns 1,2 gives 2x1, 2x2 and 4x1, 4x2. Without --columns a
 # layout is one row. --png writes one frame per layout, at --at seconds into the night; --serve
-# plays the layouts in turn in a browser, each for --hold seconds at real speed.
+# plays the layouts in turn in a browser, each for the whole night (or --hold seconds) at real speed.
 #
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 2 --serve 8080
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 2,4,6 --columns 1,2,3 --png night.png --at 2400
@@ -27,6 +27,7 @@
 
 require "json"
 require "optparse"
+require "zlib"
 require_relative "../lib/nhl_scoreboard"
 
 # Draws each board list through a display and publishes the frame to the browser, so the main loop
@@ -38,11 +39,32 @@ class BrowserDisplay
     @scale = scale
   end
 
+  # Draws the boards and publishes the frame. A frame that fails to encode (Zlib::DataError, seen
+  # on a thread under load) is retried once and then skipped, so one bad frame doesn't stop the
+  # preview: the next tick draws the next frame.
+  #
   # @param boards [Array<GameState>] the games on the boards.
+  # @param step [Integer] the goal ticker's scroll step, from the main loop.
   # @return [void]
-  def show(boards)
-    @server.publish(@display.show(boards), scale: @scale)
+  def show(boards, step: 0)
+    canvas = @display.show(boards, step: step)
+    publish(canvas)
     nil
+  end
+
+  private
+
+  # @param canvas [FakeCanvas] the frame to publish.
+  # @return [void]
+  def publish(canvas)
+    @server.publish(canvas, scale: @scale)
+  rescue Zlib::DataError => e
+    warn "replay_night: frame failed to encode (#{e.message}); retrying once"
+    begin
+      @server.publish(canvas, scale: @scale)
+    rescue Zlib::DataError => e2
+      warn "replay_night: frame skipped (#{e2.message})"
+    end
   end
 end
 
@@ -58,7 +80,7 @@ def parse_list(text, name)
   end
 end
 
-options = {panels: [2], favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL, hold: 60}
+options = {panels: [2], favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/replay_night path/to/font.bdf RECORDINGS_DIR [options]"
   opts.on("--panels LIST", "boards on the panels, such as 2 or 2,4,6 (default 2)") { |s| options[:panels] = s }
@@ -68,10 +90,11 @@ parser = OptionParser.new do |opts|
   opts.on("--favorite TRI", "favorite team's code, such as COL; its game takes the first board while it plays (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
   opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
   opts.on("--serve PORT", Integer, "play the layouts in a browser at real speed, at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
-  opts.on("--hold SECONDS", Float, "with --serve, seconds each layout plays before the next (default 60)") { |s| options[:hold] = s }
+  opts.on("--hold SECONDS", Float, "with --serve, seconds each layout plays before the next (default: the whole night)") { |s| options[:hold] = s }
   opts.on("--hardware", "play on the real panels, one layout sized to them, as bin/scoreboard does (run as root on the Pi)") { options[:hardware] = true }
   opts.on("--png FILE", "write one frame per layout as a PNG instead of playing") { |file| options[:png] = file }
   opts.on("--at SECONDS", Float, "with --png, the frame this many seconds into the night (default 0)") { |s| options[:at] = s }
+  opts.on("--from-period N", Integer, "with --serve and --favorite, start the night when the favorite's game reaches period N, such as 2") { |n| options[:from_period] = n }
 end
 parser.parse!
 
@@ -79,7 +102,7 @@ font_path, directory = ARGV.fetch(0) { abort parser.banner }, ARGV.fetch(1) { ab
 abort "give --serve PORT, --png FILE or --hardware" unless options[:serve] || options[:png] || options[:hardware]
 abort "--hardware plays on the real panels; don't combine it with --serve or --png" if options[:hardware] && (options[:serve] || options[:png])
 abort "--at needs --png" if options[:at] && !options[:png]
-abort "--hold needs --serve" if options[:hold] != 60 && !options[:serve]
+abort "--hold needs --serve" if options[:hold] && !options[:serve]
 pace = options[:pace] || :game
 abort "--step needs --pace events" if options[:step] && pace != :events
 step = options[:step] || 1
@@ -117,6 +140,15 @@ end
 
 logos = NhlScoreboard::LogoLibrary.load
 
+# --from-period: the night starts when the favorite's game reaches that period, so every game
+# starts from the same moment. Games that started earlier show their state at that moment.
+offset = 0.0
+if options[:from_period]
+  abort "--from-period needs --serve and a favorite (--favorite or $NHL_FAVORITE_TEAM)" unless options[:serve] && options[:favorite]
+  offset = night.seconds_into_period(options[:favorite].upcase, options[:from_period]) ||
+    abort("#{options[:favorite].upcase} never reaches period #{options[:from_period]} in these games")
+end
+
 if options[:hardware]
   # The real panels: one layout, sized to them, with the same loop as the fake panels. Run as root.
   abort "--hardware needs one layout; give one --panels and one --columns" unless layouts.size == 1
@@ -130,7 +162,7 @@ if options[:hardware]
   begin
     NhlScoreboard::Matrix.open(settings) do |matrix|
       display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), logos,
-        ticker: NhlScoreboard::GoalTicker.new(font), grid: grid)
+        ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       elapsed = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) - started }
       NhlScoreboard::MainLoop.new(
@@ -156,7 +188,7 @@ build_layout = lambda do |panels, columns|
   settings = NhlScoreboard::MatrixSettings.new(rows: grid.height, cols: grid.width, chain_length: 1)
   matrix = NhlScoreboard::FakeMatrix.new(settings)
   display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), logos,
-    ticker: NhlScoreboard::GoalTicker.new(font), grid: grid)
+    ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
   picker = NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards)
   [display, picker]
 end
@@ -177,24 +209,27 @@ else
   scale = 7
   first_display, first_picker = build_layout.call(*layouts.first)
   server = NhlScoreboard::PreviewServer.new(port: options[:serve])
-  server.publish(first_display.show(first_picker.boards(night.states_at(0), now: 0)), scale: scale)
+  server.publish(first_display.show(first_picker.boards(night.states_at(offset), now: offset)), scale: scale)
   listener = server.listen
   Thread.new do
-    # Each layout plays the night from its start for --hold seconds, then the next, forever.
+    # Each layout plays the night from its start, to the night's end or for --hold seconds, then the
+    # next, forever.
     loop do
       layouts.each do |panels, columns|
         display, picker = build_layout.call(panels, columns)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        elapsed = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) - started }
+        real = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) - started }
+        night_time = -> { offset + real.call }
         loop_ = NhlScoreboard::MainLoop.new(
-          source: -> { night.states_at(elapsed.call) },
+          source: -> { night.states_at(night_time.call) },
           display: BrowserDisplay.new(display, server, scale),
           picker: picker,
           poll_interval: ->(_game) { 1 },
-          clock: elapsed
+          clock: night_time
         )
-        while elapsed.call < options[:hold]
-          sleep(loop_.tick(elapsed.call))
+        hold = options[:hold] || [night.duration - offset, 1].max
+        while real.call < hold
+          sleep(loop_.tick(night_time.call))
         end
       end
     end

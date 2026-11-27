@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "team_colors"
+require_relative "team_names"
 
 module NhlScoreboard
   # The goal ticker: one goal's text scrolling from right to left across a band of rows, in the
@@ -28,16 +29,22 @@ module NhlScoreboard
     # @return [Integer] the default band's height, in rows.
     attr_reader :height
 
+    # @return [String, nil] the favorite team's tri-code, upcased, or nil for none.
+    attr_reader :favorite
+
     # @param font [BdfFont, Font] the font for the goal text.
     # @param top [Integer] the default band's first row.
     # @param height [Integer] the default band's height, in rows; the text is centred in it.
+    # @param favorite [String, nil] the favorite team's tri-code. A goal by that team reads
+    #   "{Team name} GOAL!!! scorer clock Pn"; nil or another team's goal reads "Goal (TRI) scorer clock Pn".
     # @return [GoalTicker]
     # @example
-    #   NhlScoreboard::GoalTicker.new(NhlScoreboard::BdfFont.load("fonts/5x7.bdf"))
-    def initialize(font, top: DEFAULT_TOP, height: DEFAULT_HEIGHT)
+    #   NhlScoreboard::GoalTicker.new(NhlScoreboard::BdfFont.load("fonts/5x7.bdf"), favorite: "COL")
+    def initialize(font, top: DEFAULT_TOP, height: DEFAULT_HEIGHT, favorite: nil)
       @font = font
       @top = top
       @height = height
+      @favorite = favorite&.upcase
     end
 
     # Draws a goal's text in a band, scrolled by `step` columns, in the scoring team's colour. Draws
@@ -63,17 +70,84 @@ module NhlScoreboard
       nil
     end
 
-    # The text the ticker scrolls for one goal: who scored, when, and in which period.
+    # The number of steps a goal takes to scroll once across its band and out at the left edge: the
+    # text's width plus the band's. {#draw_once} takes its steps from zero to here.
     #
-    # @param goal [#scorer, #clock, #period] the goal.
-    # @return [String] for example "MacKinnon 03:21 P2".
+    # @param canvas [Canvas, FakeCanvas] the canvas to measure on.
+    # @param goal [#tri_code, #scorer, #clock, #period] the goal.
+    # @param top [Integer] the band's first row.
+    # @param width [Integer] the band's width in columns.
+    # @return [Integer] the steps from the right edge until the text has left the band.
     # @example
-    #   ticker.text_for(goal) # => "MacKinnon 03:21 P2"
+    #   ticker.span(canvas, goal, top: 24, width: 64) # => 214
+    def span(canvas, goal, top: @top, width: canvas.width)
+      advance(canvas, goal, top: top) + width
+    end
+
+    # The width of a goal's text in columns: how far it moves from the moment its first column enters
+    # until its last column has passed the right edge.
+    #
+    # @param canvas [Canvas, FakeCanvas] the canvas to measure on.
+    # @param goal [#tri_code, #scorer, #clock, #period] the goal.
+    # @param top [Integer] the band's first row, for the baseline.
+    # @return [Integer] the text's width in columns.
+    # @example
+    #   ticker.advance(canvas, goal) # => 150
+    def advance(canvas, goal, top: @top)
+      text_width(canvas, text_for(goal), top)
+    end
+
+    # The blank columns between two goals' text, the width of a space in the font.
+    #
+    # @return [Integer] the space's advance, or 3 when the font has no space.
+    # @example
+    #   ticker.gap_width # => 4
+    def gap_width
+      font.glyph(" ".ord)&.advance || 3
+    end
+
+    # Draws a goal once, scrolling it from the band's right edge at step 0 to its left. Draws nothing
+    # before step 0 or once the text has left the band, so the caller can drop the goal then. Like
+    # {#draw}, the canvas isn't cleared.
+    #
+    # @param canvas [Canvas, FakeCanvas] the canvas to draw on.
+    # @param goal [#tri_code, #scorer, #clock, #period, nil] the goal, or nil for none.
+    # @param step [Integer] how many columns the text has scrolled since it entered.
+    # @param x [Integer] the band's left column.
+    # @param top [Integer] the band's first row.
+    # @param width [Integer] the band's width in columns.
+    # @return [nil]
+    # @example
+    #   ticker.draw_once(canvas, goal, step: 0, x: 0, top: 24, width: 64)
+    def draw_once(canvas, goal, step:, x: 0, top: @top, width: canvas.width)
+      return nil unless goal && step >= 0 && step < span(canvas, goal, top: top, width: width)
+
+      canvas.draw_text(font, x + width - step, baseline(top), *TeamColors.rgb_for(goal.tri_code), text_for(goal))
+      clear_outside(canvas, x, width, top)
+      nil
+    end
+
+    # The text the ticker scrolls for one goal: the team and scorer, when, and in which period. A goal
+    # by the favorite team reads as a shout instead.
+    #
+    # @param goal [#tri_code, #scorer, #clock, #period] the goal.
+    # @return [String] for example "Goal (CHI) MacKinnon 03:21 P2", or "AVALANCHE GOAL!!! MacKinnon 03:21 P2" for the
+    #   favorite.
+    # @example
+    #   ticker.text_for(goal) # => "Goal (COL) MacKinnon 03:21 P2"
     def text_for(goal)
-      "#{goal.scorer} #{goal.clock} P#{goal.period}"
+      return "#{TeamNames.name_for(goal.tri_code).upcase} GOAL!!! #{goal.scorer} #{goal.clock} P#{goal.period}" if favorite_goal?(goal)
+
+      "Goal (#{goal.tri_code}) #{goal.scorer} #{goal.clock} P#{goal.period}"
     end
 
     private
+
+    # @param goal [#tri_code] the goal.
+    # @return [Boolean] true when the favorite team scored it.
+    def favorite_goal?(goal)
+      !favorite.nil? && goal.tri_code.to_s.upcase == favorite
+    end
 
     # The baseline that centres the font's glyphs vertically in a band.
     #

@@ -10,6 +10,11 @@ module NhlScoreboard
   # swaps it in. The fake panels and the main loop both draw through it, so a demo and a live game
   # look the same.
   #
+  # Each goal is queued on its row's band once and scrolls across it once, from the right edge to the
+  # left, in its team's colour, then is dropped (C1-10). Goals follow one another: each enters once the
+  # one before it has passed the right edge, with a space between. A game's goals that are already there when
+  # the game first appears are history: they aren't queued, unless +scroll_history+ says to replay them.
+  #
   # Without a grid, the games sit side by side in one row, as they did before the grid existed.
   #
   # @example
@@ -38,20 +43,28 @@ module NhlScoreboard
     # @param logos [Hash{String => PpmImage}] the logos by name.
     # @param ticker [GoalTicker, nil] the goal ticker; nil draws the boards with no bands.
     # @param grid [BoardGrid, nil] the board grid; nil lays the games out side by side.
+    # @param scroll_history [Boolean] true to scroll a game's goals from before it first appeared,
+    #   too; for a demo, where the goals are all history.
     # @return [GameDisplay]
-    def initialize(matrix, layout, logos, ticker: nil, grid: nil)
+    def initialize(matrix, layout, logos, ticker: nil, grid: nil, scroll_history: false)
       @matrix = matrix
       @layout = layout
       @logos = logos
       @ticker = ticker
       @grid = grid
+      @scroll_history = scroll_history
+      @known_games = Set.new
+      @queued_goals = Set.new
+      @queues = Hash.new { |hash, row| hash[row] = [] }
+      @row_free_at = {}
     end
 
-    # Draws the games on the offscreen canvas, each on its board, with each row's ticker showing that
-    # row's latest goal, then swaps the canvas onto the matrix.
+    # Draws the games on the offscreen canvas, each on its board, queues any goals scored since the
+    # last call on their row's band, and draws each row's queued goals at their place, then swaps the
+    # canvas onto the matrix.
     #
     # @param states [Array<GameState>, GameState] the games, first board first; one state is one board.
-    # @param step [Integer] how far the goal tickers have scrolled; the caller advances it.
+    # @param step [Integer] the scroll clock, in columns. The caller advances it, and it must never go back.
     # @return [Canvas, FakeCanvas] the canvas now showing.
     # @raise [ArgumentError] if there are more games than the grid has boards, or the grid is bigger than the canvas.
     # @example
@@ -73,7 +86,8 @@ module NhlScoreboard
 
     private
 
-    # Draws each row's ticker from that row's boards only. A row with no games gets no text.
+    # Queues new goals and draws each row's queue. A goal leaves its band's queue once its text has
+    # left the band's left edge.
     #
     # @param canvas [Canvas, FakeCanvas] the canvas.
     # @param states [Array<GameState>] the games, board order.
@@ -82,20 +96,53 @@ module NhlScoreboard
     # @return [void]
     def draw_tickers(canvas, states, layout_grid, step)
       layout_grid.rows.times do |row|
-        row_states = layout_grid.boards_in_row(row).filter_map { |index| states[index] }
-        next if row_states.empty?
-
         band = layout_grid.ticker_band(row)
-        ticker.draw(canvas, latest_goal(row_states), step: step, x: band.x, top: band.top, width: band.width)
+        layout_grid.boards_in_row(row).each do |index|
+          queue_new_goals(canvas, row, band, states[index], step) if states[index]
+        end
+        queue = @queues[row]
+        queue.reject! { |entry| step - entry[:start] >= entry[:span] }
+        queue.each do |entry|
+          ticker.draw_once(canvas, entry[:goal], step: step - entry[:start], x: band.x, top: band.top, width: band.width) if step >= entry[:start]
+        end
       end
     end
 
-    # The last goal listed across some games, in board order, or nil when none has one.
+    # Queues a game's goals that aren't queued yet. The first time a game appears its goals are
+    # history, unless {#initialize}'s +scroll_history+ is set.
     #
-    # @param states [Array<GameState>] the games.
-    # @return [GameState::Goal, nil]
-    def latest_goal(states)
-      states.flat_map { |state| state.respond_to?(:goals) ? state.goals : [] }.last
+    # @param canvas [Canvas, FakeCanvas] the canvas, to measure the goals' text on.
+    # @param row [Integer] the row the game sits in.
+    # @param band [#x, #top, #width] the row's band, from {BoardGrid#ticker_band}.
+    # @param state [GameState] the game.
+    # @param step [Integer] the scroll step the goal is queued at.
+    # @return [void]
+    def queue_new_goals(canvas, row, band, state, step)
+      game = [state.home_team.tri_code, state.away_team.tri_code]
+      new_game = @known_games.add?(game)
+      state.goals.each do |goal|
+        next unless @queued_goals.add?([game, goal.tri_code, goal.period, goal.clock, goal.scorer])
+        next if new_game && !@scroll_history
+
+        enqueue(canvas, row, band, goal, step)
+      end
+    end
+
+    # Starts a goal on its row's band. It follows the goal before it: it enters once that goal's last
+    # column has passed the right edge and a space's width has gone past behind it, so the goals read
+    # one after another. Starts now when the band is free.
+    #
+    # @param canvas [Canvas, FakeCanvas] the canvas, to measure the text on.
+    # @param row [Integer] the row.
+    # @param band [#x, #top, #width] the row's band.
+    # @param goal [GameState::Goal] the goal.
+    # @param step [Integer] the scroll step now.
+    # @return [void]
+    def enqueue(canvas, row, band, goal, step)
+      span = ticker.span(canvas, goal, top: band.top, width: band.width)
+      start = [step, @row_free_at.fetch(row, step)].max
+      @queues[row] << {goal: goal, start: start, span: span}
+      @row_free_at[row] = start + (span - band.width) + ticker.gap_width
     end
 
     # @param layout_grid [BoardGrid] the grid the boards sit in.

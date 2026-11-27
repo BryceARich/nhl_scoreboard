@@ -17,6 +17,19 @@ RSpec.describe NhlScoreboard::NightReplay do
 
   let(:night) { described_class.new([game(base, "COL"), game(base + 600, "VGK"), game(base + 1800, "NJD")]) }
 
+  describe "#seconds_into_period" do
+    it "gives the moment a team's game reaches the period, as seconds into the night" do
+      seconds = night.seconds_into_period("COL", 2)
+      expect(seconds).to be_a(Float)
+      expect(night.states_at(seconds).find { |state| state.home_team.tri_code == "COL" }.period).to be >= 2
+    end
+
+    it "is nil for a team not playing tonight, or a period no game reaches" do
+      expect(night.seconds_into_period("TOR", 1)).to be_nil
+      expect(night.seconds_into_period("COL", 9)).to be_nil
+    end
+  end
+
   describe "#states_at" do
     it "starts at the first game and adds each game as it starts" do
       expect(night.states_at(0).map { |state| state.home_team.tri_code }).to eq(["COL"])
@@ -69,14 +82,16 @@ RSpec.describe NhlScoreboard::NightReplay do
     now = 0.0
     draws = []
     display = Object.new
-    display.define_singleton_method(:show) do |boards|
+    display.define_singleton_method(:show) do |boards, step: 0|
       draws << [now, boards]
       nil
     end
     loop = NhlScoreboard::MainLoop.new(source: -> { night.states_at(now) }, display: display, picker: picker,
       poll_interval: ->(_game) { 1 }, clock: -> { now }, logger: StringIO.new)
-    while now <= seconds
-      now += loop.tick(now)
+    # The loop wakes every SCROLL_SECONDS; time comes from a tick count, so the clock never drifts.
+    (0..(seconds / NhlScoreboard::MainLoop::SCROLL_SECONDS).round).each do |i|
+      now = i * NhlScoreboard::MainLoop::SCROLL_SECONDS
+      loop.tick(now)
     end
     draws
   end
