@@ -90,6 +90,16 @@ module NhlScoreboard
       self.class.new(**to_h.merge(changes))
     end
 
+    # Whether the game is under way: a period is being played, or the game is between periods. The
+    # game picker reads this, as it reads `SportsIngest::NHL::GameScore#live?`.
+    #
+    # @return [Boolean]
+    # @example
+    #   state.live? # => true during the first period
+    def live?
+      %i[regulation overtime shootout intermission].include?(phase)
+    end
+
     # The state as a Hash with string keys, in the shape {.from_h} reads. Writing it to JSON and
     # reading it back gives an equal state.
     #

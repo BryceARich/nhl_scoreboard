@@ -24,4 +24,5 @@ didn't, and what follows.
 | [0007](0007-sports-ingest-as-git-gem.md) | Read the NHL through sports_ingest, from its git repo and pinned to a commit | Proposed |
 | [0007](0007-main-loop-picker-and-offline-reads.md) | Pick the favorite team's live game first, then rotate; keep the last games when reads fail | Proposed |
 | [0019](0019-replay-recordings-one-frame-a-second.md) | Store a game recording as JSON Lines of timed states, and replay one frame a second | Proposed |
+| [0019](0019-night-replay-through-the-main-loop.md) | Play a night of recorded games through the main loop on one clock, with the boards and columns as inputs | Proposed |
 | [0019](0019-backfill-recordings-from-play-by-play.md) | Build a finished game's recording from its play-by-play, one read a second, in this repo | Proposed |

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "time"
+
 require_relative "error"
 require_relative "game_recording"
 require_relative "game_state"
@@ -14,8 +16,9 @@ module NhlScoreboard
   # same rate as play. A live clock stops at whistles, so a replay drifts from the real clock by the
   # length of each stoppage.
   #
-  # Each snapshot's `at` is game time in seconds from the start of the first period, not a read
-  # time. Replay only uses the differences between reads, so it plays the same either way.
+  # Each snapshot's `at` is the game's start plus the game time, in seconds since the epoch. The
+  # start is the payload's `startTimeUTC`, or the +start:+ given, so games on one night line up on
+  # one clock (see {NightReplay}). A payload with neither starts at 0.
   #
   # @example
   #   payload = JSON.parse(File.read("game.json"))
@@ -46,19 +49,23 @@ module NhlScoreboard
     # Reads the timeline of one game.
     #
     # @param payload [Hash] the parsed `/gamecenter/{id}/play-by-play` JSON.
+    # @param start [Numeric, nil] when the game started, in seconds since the epoch; nil reads
+    #   `startTimeUTC` from the payload, or uses 0.
     # @return [Array<GameRecording::Snapshot>] one snapshot a second, from the first play through
     #   the last; empty if the game has no plays.
     # @raise [Error] if the payload isn't shaped as expected.
     # @example
-    #   NhlScoreboard::PlayByPlay.snapshots(payload).map(&:at).last
-    def self.snapshots(payload)
-      new(payload).snapshots
+    #   NhlScoreboard::PlayByPlay.snapshots(payload, start: 1_800_000_000).first.at # => 1800000000.0
+    def self.snapshots(payload, start: nil)
+      new(payload, start: start).snapshots
     end
 
     # @param payload [Hash] the parsed play-by-play JSON, as {.snapshots} takes it.
+    # @param start [Numeric, nil] the game's start in seconds since the epoch, or nil for the payload's.
     # @raise [Error] if the payload isn't shaped as expected.
-    def initialize(payload)
+    def initialize(payload, start: nil)
       @payload = payload
+      @start = start&.to_f || start_from_payload
       @events = build_events
     end
 
@@ -69,7 +76,7 @@ module NhlScoreboard
       last = @events.last.elapsed
       (@events.first.elapsed..last).map do |second|
         index = @events.rindex { |event| event.elapsed <= second } || 0
-        GameRecording::Snapshot.new(second.to_f, state_at(second, index))
+        GameRecording::Snapshot.new(@start + second, state_at(second, index))
       end
     end
 
@@ -111,6 +118,17 @@ module NhlScoreboard
 
     def home_code
       @payload.fetch("homeTeam").fetch("abbrev")
+    end
+
+    # @return [Float] the game's start from `startTimeUTC`, or 0 when the payload has none.
+    # @raise [Error] if `startTimeUTC` isn't an ISO 8601 time.
+    def start_from_payload
+      raw = @payload["startTimeUTC"]
+      return 0.0 if raw.nil?
+
+      Time.iso8601(raw).to_f
+    rescue ArgumentError, TypeError
+      raise Error, "startTimeUTC isn't an ISO 8601 time: #{raw.inspect}"
     end
 
     def away_code

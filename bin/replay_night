@@ -1,0 +1,112 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Plays a night of recorded games through the scoreboard's main loop, on the fake panels (the Mac
+# stand-in). Each game is a recording in the directory: a .jsonl file from GameRecording, or a .json
+# play-by-play payload, which PlayByPlay turns into a recording. The games start on one clock, from
+# their recorded times, so the boards show the night as a live loop would have. Needs no panels,
+# librgbmatrix or root. docs/RESUME.md has the commands.
+#
+# --panels is how many boards (each a 64-column panel's width) and --columns how many per row, so
+# 6 boards in 3 columns is two rows. --variations is how many of the night's games to play, first
+# by file name. --serve shows the night in a browser at real speed; --png writes one frame, the
+# one at --at seconds into the night.
+#
+#   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 2 --serve 8080
+#   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 6 --columns 3 --variations 4 --serve 8080
+#   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 4 --columns 2 --png night.png --at 2400
+
+require "json"
+require "optparse"
+require_relative "../lib/nhl_scoreboard"
+
+# Draws each board list through the display and publishes the frame to the browser, so the main loop
+# can draw through it without knowing about the server.
+class BrowserDisplay
+  def initialize(display, server, scale)
+    @display = display
+    @server = server
+    @scale = scale
+  end
+
+  # @param boards [Array<GameState>] the games on the boards.
+  # @return [void]
+  def show(boards)
+    @server.publish(@display.show(boards), scale: @scale)
+    nil
+  end
+end
+
+options = {panels: 2, dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
+parser = OptionParser.new do |opts|
+  opts.banner = "usage: bin/replay_night path/to/font.bdf RECORDINGS_DIR [options]"
+  opts.on("--panels N", Integer, "boards on the panels (default 2)") { |n| options[:panels] = n }
+  opts.on("--columns N", Integer, "boards per row (default: all on one row)") { |n| options[:columns] = n }
+  opts.on("--variations N", Integer, "how many of the night's games to play, first by file name (default: all)") { |n| options[:variations] = n }
+  opts.on("--favorite TRI", "favorite team's code; its game takes the first board while it plays") { |tri| options[:favorite] = tri }
+  opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
+  opts.on("--serve PORT", Integer, "play the night in a browser at real speed, at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
+  opts.on("--png FILE", "write one frame as a PNG instead of playing") { |file| options[:png] = file }
+  opts.on("--at SECONDS", Float, "with --png, the frame this many seconds into the night (default 0)") { |s| options[:at] = s }
+end
+parser.parse!
+
+font_path, directory = ARGV.fetch(0) { abort parser.banner }, ARGV.fetch(1) { abort parser.banner }
+abort "give --serve PORT or --png FILE" unless options[:serve] || options[:png]
+abort "--at needs --png" if options[:at] && !options[:png]
+abort "--panels must be at least 1" unless options[:panels].positive?
+abort "--variations must be at least 1" if options[:variations]&.zero?
+
+grid = begin
+  NhlScoreboard::BoardGrid.new(boards: options[:panels], columns: options[:columns] || options[:panels])
+rescue ArgumentError => e
+  abort e.message
+end
+
+paths = Dir.glob(File.join(directory, "*.{jsonl,json}")).sort
+abort "no recordings (.jsonl) or play-by-play (.json) in #{directory}" if paths.empty?
+paths = paths.first(options[:variations]) if options[:variations]
+
+games = begin
+  paths.map do |path|
+    if path.end_with?(".jsonl")
+      NhlScoreboard::GameRecording.read(path)
+    else
+      NhlScoreboard::PlayByPlay.snapshots(JSON.parse(File.read(path)))
+    end
+  end
+rescue NhlScoreboard::Error, JSON::ParserError, Errno::ENOENT => e
+  abort e.message
+end
+night = NhlScoreboard::NightReplay.new(games)
+
+font = NhlScoreboard::BdfFont.load(font_path)
+settings = NhlScoreboard::MatrixSettings.new(rows: grid.height, cols: grid.width, chain_length: 1)
+matrix = NhlScoreboard::FakeMatrix.new(settings)
+display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load,
+  ticker: NhlScoreboard::GoalTicker.new(font), grid: grid)
+picker = NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards)
+
+if options[:png]
+  # One frame, as the loop would draw it at that second of the night.
+  at = options[:at] || 0.0
+  canvas = display.show(picker.boards(night.states_at(at), now: at))
+  File.binwrite(options[:png], canvas.to_png(scale: 1))
+  puts "wrote #{options[:png]}: #{grid.boards} boards, #{night.size} games, at #{at}s"
+else
+  scale = 7
+  server = NhlScoreboard::PreviewServer.new(port: options[:serve])
+  server.publish(display.show(picker.boards(night.states_at(0), now: 0)), scale: scale)
+  listener = server.listen
+  started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  loop_ = NhlScoreboard::MainLoop.new(
+    source: -> { night.states_at(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) },
+    display: BrowserDisplay.new(display, server, scale),
+    picker: picker,
+    poll_interval: ->(_game) { 1 },
+    clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) - started }
+  )
+  Thread.new { loop_.run }
+  puts "playing #{night.size} games at http://127.0.0.1:#{server.port} (Ctrl-C to stop)"
+  server.serve(listener)
+end
