@@ -11,11 +11,11 @@
 # row (--columns). Give lists to try several layouts: every panel count is paired with every column
 # count that fits it, so --panels 2,4 --columns 1,2 gives 2x1, 2x2 and 4x1, 4x2. Without --columns a
 # layout is one row. --png writes one frame per layout, at --at seconds into the night; --serve
-# plays the layouts in turn in a browser, each for --hold seconds at real speed.
+# plays the layouts in turn in a browser, each through the whole night, or for --hold seconds if given.
 #
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 2 --serve 8080
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 2,4,6 --columns 1,2,3 --png night.png --at 2400
-#   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 4,6 --columns 2,3 --serve 8080 --hold 60
+#   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 4,6 --columns 2,3 --serve 8080
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 12 --columns 4 --pace events --serve 8080
 #
 # The favorite team comes from --favorite or $NHL_FAVORITE_TEAM, as in bin/scoreboard.
@@ -58,7 +58,7 @@ def parse_list(text, name)
   end
 end
 
-options = {panels: [2], favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL, hold: 60}
+options = {panels: [2], favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/replay_night path/to/font.bdf RECORDINGS_DIR [options]"
   opts.on("--panels LIST", "boards on the panels, such as 2 or 2,4,6 (default 2)") { |s| options[:panels] = s }
@@ -68,7 +68,7 @@ parser = OptionParser.new do |opts|
   opts.on("--favorite TRI", "favorite team's code, such as COL; its game takes the first board while it plays (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
   opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
   opts.on("--serve PORT", Integer, "play the layouts in a browser at real speed, at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
-  opts.on("--hold SECONDS", Float, "with --serve, seconds each layout plays before the next (default 60)") { |s| options[:hold] = s }
+  opts.on("--hold SECONDS", Float, "with --serve, seconds each layout plays before the next (default: the whole night)") { |s| options[:hold] = s }
   opts.on("--hardware", "play on the real panels, one layout sized to them, as bin/scoreboard does (run as root on the Pi)") { options[:hardware] = true }
   opts.on("--png FILE", "write one frame per layout as a PNG instead of playing") { |file| options[:png] = file }
   opts.on("--at SECONDS", Float, "with --png, the frame this many seconds into the night (default 0)") { |s| options[:at] = s }
@@ -79,7 +79,7 @@ font_path, directory = ARGV.fetch(0) { abort parser.banner }, ARGV.fetch(1) { ab
 abort "give --serve PORT, --png FILE or --hardware" unless options[:serve] || options[:png] || options[:hardware]
 abort "--hardware plays on the real panels; don't combine it with --serve or --png" if options[:hardware] && (options[:serve] || options[:png])
 abort "--at needs --png" if options[:at] && !options[:png]
-abort "--hold needs --serve" if options[:hold] != 60 && !options[:serve]
+abort "--hold needs --serve" if options[:hold] && !options[:serve]
 pace = options[:pace] || :game
 abort "--step needs --pace events" if options[:step] && pace != :events
 step = options[:step] || 1
@@ -180,7 +180,7 @@ else
   server.publish(first_display.show(first_picker.boards(night.states_at(0), now: 0)), scale: scale)
   listener = server.listen
   Thread.new do
-    # Each layout plays the night from its start for --hold seconds, then the next, forever.
+    # Each layout plays the night from its start, through the whole night or --hold seconds, then the next.
     loop do
       layouts.each do |panels, columns|
         display, picker = build_layout.call(panels, columns)
@@ -193,7 +193,8 @@ else
           poll_interval: ->(_game) { 1 },
           clock: elapsed
         )
-        while elapsed.call < options[:hold]
+        hold = options[:hold] || night.duration
+        while elapsed.call < hold
           sleep(loop_.tick(elapsed.call))
         end
       end
