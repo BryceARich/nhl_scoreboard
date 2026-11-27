@@ -1,0 +1,11 @@
+# Installed as /etc/logrotate.d/nhl-scoreboard by script/pi/provision (C1-07). copytruncate, not
+# create: the service keeps the log open in append mode, so the file is truncated in place.
+/var/log/nhl-scoreboard/*.log {
+    daily
+    rotate 7
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}

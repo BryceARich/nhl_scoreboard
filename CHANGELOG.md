@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Pi provisioning (C1-07): `script/pi/provision --font FONT [--favorite TRI]` sets up Ruby and the
+  gems, builds librgbmatrix at its pinned commit if it isn't installed, and installs and enables
+  `deploy/nhl-scoreboard.service`, a systemd unit that starts `bin/scoreboard` on boot and restarts it
+  after a crash. Logs go to `/var/log/nhl-scoreboard/scoreboard.log`, rotated daily by
+  `deploy/nhl-scoreboard.logrotate`. See ADR 0008. Build order: C1-07.
 - Board grid (C1-06): `BoardGrid` places boards on a grid of any size, with
   `columns` to a row, and each row of boards gets its own goal ticker under it, sized to that row
   (ADR 0007, which supersedes ADR 0006's band across the whole canvas). `ScoreboardLayout#draw`

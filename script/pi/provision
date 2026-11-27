@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Sets up the scoreboard on a Raspberry Pi: Ruby and gems, librgbmatrix, the systemd service and
+# log rotation (C1-07, ADR 0008). Run it as the user who will own the checkout, not as root; it
+# calls sudo for the system steps. Safe to run again.
+#
+#   script/pi/provision --font ~/rpi-rgb-led-matrix/fonts/5x7.bdf --favorite COL
+set -euo pipefail
+IFS=$'\n\t'
+
+# Pinned like docs/HARDWARE.md ("Building librgbmatrix").
+LIBRGBMATRIX_REPO="https://github.com/hzeller/rpi-rgb-led-matrix.git"
+LIBRGBMATRIX_COMMIT="a8dd6854580b7e2b18d0f697cec94415dd8824cd"
+
+usage() {
+  echo "usage: script/pi/provision --font PATH/TO/FONT.bdf [--favorite TRI]" >&2
+  exit 64
+}
+
+font=""
+favorite=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --font) font="${2:-}"; shift 2 ;;
+    --favorite) favorite="${2:-}"; shift 2 ;;
+    -h | --help) usage ;;
+    *) echo "unknown argument: $1" >&2; usage ;;
+  esac
+done
+[ -n "$font" ] || usage
+
+if [ "$(id -u)" -eq 0 ]; then
+  echo "Run this as the user who owns the checkout, not as root. It calls sudo where it needs to." >&2
+  exit 1
+fi
+
+root=$(cd "$(dirname "$0")/../.." && pwd)
+font=$(cd "$(dirname "$font")" && pwd)/$(basename "$font")
+[ -f "$font" ] || { echo "font not found: $font" >&2; exit 1; }
+
+echo "== Ruby and gems"
+"$root/bin/setup"
+ruby_bin=$(cd "$root" && mise which ruby)
+
+echo "== librgbmatrix"
+if [ ! -f /usr/local/lib/librgbmatrix.so ]; then
+  src="$HOME/rpi-rgb-led-matrix"
+  [ -d "$src" ] || git clone "$LIBRGBMATRIX_REPO" "$src"
+  git -C "$src" checkout --quiet "$LIBRGBMATRIX_COMMIT"
+  make -C "$src"
+  sudo make -C "$src" install
+  sudo ldconfig
+else
+  echo "already installed"
+fi
+
+echo "== Service and log rotation"
+sudo install -d -m 0755 /var/log/nhl-scoreboard
+render() { sed -e "s|@APP_DIR@|$root|g" -e "s|@RUBY@|$ruby_bin|g" -e "s|@FONT@|$font|g" "$1"; }
+render "$root/deploy/nhl-scoreboard.service" | sudo tee /etc/systemd/system/nhl-scoreboard.service >/dev/null
+sudo install -m 0644 "$root/deploy/nhl-scoreboard.logrotate" /etc/logrotate.d/nhl-scoreboard
+if [ -n "$favorite" ]; then
+  printf 'NHL_FAVORITE_TEAM=%s\n' "$favorite" | sudo tee /etc/nhl-scoreboard.env >/dev/null
+else
+  printf '' | sudo tee /etc/nhl-scoreboard.env >/dev/null
+fi
+sudo chmod 0644 /etc/nhl-scoreboard.env
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now nhl-scoreboard.service
+echo "Started. Follow it with: sudo journalctl -u nhl-scoreboard -f  (or tail -f /var/log/nhl-scoreboard/scoreboard.log)"
