@@ -35,7 +35,8 @@ you need, and read only the files the issue touches.
 
 ## 4. Open the PR
 
-1. Work through the Definition of Done: tests, YARD, docs, ADR, CHANGELOG.
+1. Work through the Definition of Done: tests, YARD, docs, ADR, CHANGELOG. If the issue changes
+   status, setup or commands, update `docs/RESUME.md` in the same PR.
 2. Commit, push to the `bot` remote and open the PR as BryceAIRich (`CLAUDE.md`), from
    `.github/pull_request_template.md`: `Closes #$ARGUMENTS`, the DoD items you verified ticked, and
    a final "Generated with Claude Code" line. Commits end with the `Co-Authored-By:` trailer.

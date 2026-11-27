@@ -8,7 +8,9 @@ didn't, and what follows.
    the slug keeps them apart, so link to the file.
 2. Start with status **Proposed**; change it to **Accepted** when the PR merges.
 3. Add a row below.
-4. Never rewrite an accepted decision. Write a new ADR and mark the old one
+4. A ticket that defers a decision to another ticket adds a row here as **Open**, naming the ticket
+   that owns it, and closes it with a link to the ADR that decides it.
+5. Never rewrite an accepted decision. Write a new ADR and mark the old one
    **Superseded by [NNNN](NNNN-title.md)**.
 
 | # | Decision | Status |

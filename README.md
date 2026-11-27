@@ -18,6 +18,8 @@ Python scoreboard in NHL_Apps (`led_scoreboard.py`).
 | [`CLAUDE.md`](CLAUDE.md) | Project rules: code, docs, branches, licensed data |
 | [`docs/BOT_ACCOUNT.md`](docs/BOT_ACCOUNT.md) | Setting up the account Claude contributes as |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed |
+| [`docs/WORKTREES.md`](docs/WORKTREES.md) | Finding a ticket's branch and worktree |
+| [`docs/GAME_DATA.md`](docs/GAME_DATA.md) | Where game data lives, and fetching it |
 
 ## Quick start
 

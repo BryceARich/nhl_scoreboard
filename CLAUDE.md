@@ -20,6 +20,9 @@ bundle exec standardrb            # lint (--fix to autofix)
 script/licensed-data-guard --all  # check tracked files for licensed data
 ```
 
+Run long checks in the background and read their output file when they finish. Don't `sleep` to
+wait for them. Game data and fonts live outside the repo; see [`docs/GAME_DATA.md`](docs/GAME_DATA.md).
+
 In a Claude session, prefix Ruby commands with `script/claude/run`: it picks the `.ruby-version` Ruby.
 
 ## Code conventions
