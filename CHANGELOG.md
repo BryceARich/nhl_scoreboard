@@ -22,7 +22,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   favorite team (`--favorite`, `NHL_FAVORITE_TEAM`) scrolls as "{Team name} GOAL!!!", for example
   "Avalanche GOAL!!! scorer clock Pn" (`TeamNames`). `GoalTicker` takes `favorite:`.
 - Goal queue (C1-10): each goal scrolls once across its row's band, in its team's colour, then is
-  dropped. Each starts as soon as it's scored, so goals can overlap. A game's goals already there when it
+  dropped. Each follows the one before it: it enters once that goal's text has passed the right edge
+  and a space's width has gone by (`GoalTicker#advance`, `#gap_width`). A game's goals already there when it
   first shows are history and don't scroll; `GameDisplay` takes `scroll_history:` to replay them (the
   ticker demo does). `GoalTicker#span` and `#draw_once` draw one scroll.
 - Replay length (C1-10): `bin/replay_night --serve` plays each layout for the whole night by default;

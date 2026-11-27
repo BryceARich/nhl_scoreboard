@@ -122,13 +122,16 @@ RSpec.describe NhlScoreboard::GameDisplay do
       expect(band_colours(display.show(plain.with(goals: [chi_goal]), step: 1000))).to eq([[0, 0, 0]])
     end
 
-    it "starts the next goal without waiting for the last one to leave, each in its own team's colour" do
+    it "starts the next goal once the last one's text and a space have passed the right edge" do
       display = queue_display
       display.show(plain, step: 0)
       both = plain.with(goals: [chi_goal, col_goal])
       display.show(both, step: 0)
-      colours = band_colours(display.show(both, step: 20))
-      expect(colours).to include(NhlScoreboard::TeamColors.rgb_for("CHI"), NhlScoreboard::TeamColors.rgb_for("COL"))
+      canvas = NhlScoreboard::FakeCanvas.new(width: 128, height: 32)
+      start = ticker.advance(canvas, chi_goal, top: 24) + ticker.gap_width
+      col = NhlScoreboard::TeamColors.rgb_for("COL")
+      expect(band_colours(display.show(both, step: start - 1))).not_to include(col)
+      expect(band_colours(display.show(both, step: start + 20))).to include(col)
     end
   end
 

@@ -81,7 +81,29 @@ module NhlScoreboard
     # @example
     #   ticker.span(canvas, goal, top: 24, width: 64) # => 214
     def span(canvas, goal, top: @top, width: canvas.width)
-      text_width(canvas, text_for(goal), top) + width
+      advance(canvas, goal, top: top) + width
+    end
+
+    # The width of a goal's text in columns: how far it moves from the moment its first column enters
+    # until its last column has passed the right edge.
+    #
+    # @param canvas [Canvas, FakeCanvas] the canvas to measure on.
+    # @param goal [#tri_code, #scorer, #clock, #period] the goal.
+    # @param top [Integer] the band's first row, for the baseline.
+    # @return [Integer] the text's width in columns.
+    # @example
+    #   ticker.advance(canvas, goal) # => 150
+    def advance(canvas, goal, top: @top)
+      text_width(canvas, text_for(goal), top)
+    end
+
+    # The blank columns between two goals' text, the width of a space in the font.
+    #
+    # @return [Integer] the space's advance, or 3 when the font has no space.
+    # @example
+    #   ticker.gap_width # => 4
+    def gap_width
+      font.glyph(" ".ord)&.advance || 3
     end
 
     # Draws a goal once, scrolling it from the band's right edge at step 0 to its left. Draws nothing

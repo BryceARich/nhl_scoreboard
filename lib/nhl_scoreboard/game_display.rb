@@ -11,8 +11,8 @@ module NhlScoreboard
   # look the same.
   #
   # Each goal is queued on its row's band once and scrolls across it once, from the right edge to the
-  # left, in its team's colour, then is dropped (C1-10). Each goal starts as soon as it's scored, so
-  # goals can overlap on the band. A game's goals that are already there when
+  # left, in its team's colour, then is dropped (C1-10). Goals follow one another: each enters once the
+  # one before it has passed the right edge, with a space between. A game's goals that are already there when
   # the game first appears are history: they aren't queued, unless +scroll_history+ says to replay them.
   #
   # Without a grid, the games sit side by side in one row, as they did before the grid existed.
@@ -56,6 +56,7 @@ module NhlScoreboard
       @known_games = Set.new
       @queued_goals = Set.new
       @queues = Hash.new { |hash, row| hash[row] = [] }
+      @row_free_at = {}
     end
 
     # Draws the games on the offscreen canvas, each on its board, queues any goals scored since the
@@ -127,18 +128,21 @@ module NhlScoreboard
       end
     end
 
-    # Starts a goal scrolling on its row's band now. It doesn't wait for the goals before it to leave,
-    # so two can be on the band at once; the later one draws over the earlier.
+    # Starts a goal on its row's band. It follows the goal before it: it enters once that goal's last
+    # column has passed the right edge and a space's width has gone past behind it, so the goals read
+    # one after another. Starts now when the band is free.
     #
     # @param canvas [Canvas, FakeCanvas] the canvas, to measure the text on.
     # @param row [Integer] the row.
     # @param band [#x, #top, #width] the row's band.
     # @param goal [GameState::Goal] the goal.
-    # @param step [Integer] the scroll step now, where the goal enters.
+    # @param step [Integer] the scroll step now.
     # @return [void]
     def enqueue(canvas, row, band, goal, step)
       span = ticker.span(canvas, goal, top: band.top, width: band.width)
-      @queues[row] << {goal: goal, start: step, span: span}
+      start = [step, @row_free_at.fetch(row, step)].max
+      @queues[row] << {goal: goal, start: start, span: span}
+      @row_free_at[row] = start + (span - band.width) + ticker.gap_width
     end
 
     # @param layout_grid [BoardGrid] the grid the boards sit in.
