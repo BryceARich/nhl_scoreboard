@@ -51,14 +51,15 @@ bundle exec standardrb    # should be clean
 ### Running the app
 
 On the Pi, as root, with the panels wired and librgbmatrix built ([`HARDWARE.md`](HARDWARE.md)).
-It shows the favorite team's live game, else takes turns through today's games:
+It puts the favorite team's game on board 1 while it plays today, and rotates the other games through
+board 2, live ones first:
 
 ```bash
 sudo NHL_FAVORITE_TEAM=COL "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-matrix/fonts/5x7.bdf
 ```
 
 `--favorite TRI` does the same as `NHL_FAVORITE_TEAM`, and `--dwell SECONDS` sets how long each
-game holds the panels (10 by default). It reads the NHL through `sports_ingest`, which the Pi
+game holds its board (10 by default). It reads the NHL through `sports_ingest`, which the Pi
 must reach over the network. C1-07 (#8) adds the Pi service that starts it on boot.
 
 ### Fake canvas on the Mac

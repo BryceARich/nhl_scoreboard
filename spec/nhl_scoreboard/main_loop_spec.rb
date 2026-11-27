@@ -52,7 +52,7 @@ RSpec.describe NhlScoreboard::MainLoop do
     games.replace([game("pre", state: :pre)])
     loop_ = build
     expect(loop_.tick(0)).to eq(10)
-    expect(display.shown.map(&:name)).to eq(["pre"])
+    expect(display.shown.map { |boards| boards.map(&:name) }).to eq([["pre"]])
   end
 
   it "sleeps for a live game's poll interval when it's shorter than the rotation" do
@@ -91,7 +91,7 @@ RSpec.describe NhlScoreboard::MainLoop do
     loop_.tick(0)
     failing = true
     expect(loop_.tick(10)).to eq(5) # the game stays up; the retry is due in 5s
-    expect(display.shown.map(&:name)).to eq(%w[live live])
+    expect(display.shown.map { |boards| boards.map(&:name) }).to eq([["live"], ["live"]])
     expect(logger.string).to include("read failed (SocketError: no route to host)")
   end
 

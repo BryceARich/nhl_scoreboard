@@ -40,7 +40,7 @@ RSpec.describe "a real SportsIngest::NHL::GameScore", if: defined?(SportsIngest:
     expect { display.show(final) }.not_to raise_error
   end
 
-  it "the loop polls a live game at the gem's rate and shows it" do
+  it "the loop polls a live game at the gem's rate and shows it on board 1" do
     live = score(state: :live, period: 1, period_type: :regulation, seconds_remaining: 600)
     shown = []
     shown_display = Object.new
@@ -53,6 +53,6 @@ RSpec.describe "a real SportsIngest::NHL::GameScore", if: defined?(SportsIngest:
       logger: StringIO.new
     )
     expect(loop_.tick(0)).to eq(10)
-    expect(shown).to eq([live])
+    expect(shown).to eq([[live]])
   end
 end

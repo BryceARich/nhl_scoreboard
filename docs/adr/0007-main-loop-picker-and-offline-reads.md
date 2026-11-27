@@ -1,4 +1,4 @@
-# 0007. Pick the favorite team's live game first, then rotate; keep the last games when reads fail
+# 0007. Put the favorite team's game on board 1, rotate live games on board 2; keep the last games when reads fail
 
 - **Status:** Proposed
 - **Date:** 2026-11-26
@@ -13,10 +13,13 @@ interval per phase and leaves the loop to the caller.
 
 ## Decision
 
-- **Picker (`GamePicker`).** A live game with the favorite team always wins. Otherwise the day's
-  games take turns, each for `dwell` seconds (default 10). The rotation position comes from the
-  time since it started, so the picker keeps no game data. The favorite is set with
-  `--favorite` or `NHL_FAVORITE_TEAM`; with none set, the picker only rotates.
+- **Picker (`GamePicker`).** The favorite team's game takes board 1 whenever it's playing today,
+  pre-game and final included. Board 2 takes the other games in turn, each for `dwell` seconds
+  (default 10), and prefers live games: a non-live game shows only while no other game is live.
+  With one game today, board 1 shows it and board 2 stays empty, favorite or not. With no favorite
+  playing, board 1 follows the same live-first rotation and board 2 takes the next game from the
+  rest. The rotation position comes from the time since it started, so the picker keeps no game
+  data. The favorite is set with `--favorite` or `NHL_FAVORITE_TEAM`.
 - **Polling (`MainLoop`).** The next read comes after the shortest wait the poll rule gives any
   game. With no game left to poll (all final, or no games today), it rereads every 300 s.
   The loop wakes at least every `dwell` seconds to rotate, and at each read.
@@ -27,8 +30,9 @@ interval per phase and leaves the loop to the caller.
 
 ## Alternatives considered
 
-- **Favorite team's game always, even before it starts.** Would leave the panels on a pre-game
-  screen for hours. Only live games preempt; a pre-game favorite is shown in the rotation.
+- **Only a live favorite preempts.** The first version did this, so a pre-game favorite sat in the
+  rotation. The maintainer wants the favorite on board 1 whenever it's playing today, so the
+  preference holds across the whole game.
 - **Rotate only, ignore the favorite.** Simpler, but a home-team fan would miss the game they
   care about during a busy night. Rejected.
 - **Exit on a read error and let systemd restart it (C1-07).** The panels would go dark during
@@ -44,7 +48,7 @@ interval per phase and leaves the loop to the caller.
 ## Consequences
 
 - The loop is testable with a fake source, a fake display and a fake clock; the specs cover the
-  rotation, the favorite preemption, the backoff and the idle reread without the network.
+  board pairing, the live preference, the rotation, the backoff and the idle reread without the network.
 - A stuck read that never raises and never returns blocks the loop. `sports_ingest`'s HTTP client
   sets timeouts, so this shouldn't happen, but C1-07's service should restart a process that
   stops logging.

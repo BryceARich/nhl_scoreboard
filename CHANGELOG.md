@@ -13,8 +13,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for its scoreboard; `ScoreboardLayout#draw` takes `x:` for the board's column. `GameDisplay#show`
   takes a list of states, one board each, and `step:` and `ticker:`. `bin/fake_panels --demo ticker`
   shows two games with the ticker across both.
-- Main loop (C1-06): `GamePicker` shows a live game with the favorite team (`--favorite`, or
-  `NHL_FAVORITE_TEAM`), else takes turns through today's games for `--dwell` seconds. `MainLoop`
+- Main loop (C1-06): `GamePicker` puts the favorite team's game on board 1 while it plays today
+  (`--favorite`, or `NHL_FAVORITE_TEAM`), and rotates the other games through board 2 for `--dwell`
+  seconds, live ones first. With one game today, board 2 stays empty. `MainLoop`
   reads the day's games through `sports_ingest` with the gem's poll interval, so a live game is read
   every 10 s and an idle day every 300 s, and it keeps the last games on the panels when a read
   fails, retrying with backoff. `bin/scoreboard` runs it on the panels. `sports_ingest` is a git

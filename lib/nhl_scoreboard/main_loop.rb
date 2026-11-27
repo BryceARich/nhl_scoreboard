@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module NhlScoreboard
-  # The scoreboard's loop (C1-06): reads the day's games, picks one with {GamePicker}, draws it with
+  # The scoreboard's loop (C1-06): reads the day's games, picks the boards with {GamePicker}, draws them with
   # {GameDisplay}, and sleeps until the next thing to do. It only decides when to read and what to
   # show; the data comes from +source+ and the drawing from +display+.
   #
@@ -76,7 +76,7 @@ module NhlScoreboard
       loop { sleeper.call(tick(@clock.call)) }
     end
 
-    # One pass: read the games if one is due, draw the game the picker chooses, and say how long to
+    # One pass: read the games if one is due, draw the games the picker chooses, and say how long to
     # sleep before the next pass.
     #
     # @param now [Numeric] the current time, on the same clock as +clock+.
@@ -85,8 +85,8 @@ module NhlScoreboard
     #   loop.tick(0) # => 10
     def tick(now)
       read(now) if @next_read_at.nil? || now >= @next_read_at
-      game = picker.pick(@games, now: now)
-      display.show(game) if game
+      boards = picker.boards(@games, now: now)
+      display.show(boards) unless boards.empty?
       sleep_for(now)
     end
 
