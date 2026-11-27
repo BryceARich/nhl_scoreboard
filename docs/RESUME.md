@@ -15,6 +15,10 @@ logo loader; its 34 logos are pre-sized to 20×20 in `assets/logos/`. **C1-04** 
 pass, and `bin/fake_panels --frame scoreboard` is for a human to look at. **C1-05** (#6) adds the goal ticker, a band under the boards in rows 24 to 31 that scrolls the latest goal in the scoring team's colours across the whole grid (ADR 0006); its specs pass, and `--demo ticker` is for a human to look at. **C1-06** (#7) adds the main loop and
 `bin/scoreboard` (ADR 0007): the game picker, adaptive polling, and offline tolerance. Its specs pass
 offline; a run on the panels and through a full game are for the maintainer. Next, in order: **C1-07**.
+**C1-09** (#19) adds the replays: `GameRecording` reads a recording, `PlayByPlay` builds one from a finished game's
+play-by-play, `NightReplay` plays several games on one clock, and `bin/replay_night` runs a night through
+the main loop on the fake panels. Its specs pass on synthetic data. The gem is in the Gemfile (ADR 0007), but nothing in C1-09 fetches
+from the NHL yet: the recorder for live games is still to come. A run on a real night is for the maintainer.
 CI runs the licensed-data guard and the specs and lint on every pull request and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
 for you, and `/spawn_unblocked` starts sessions for the ready ones.
@@ -95,6 +99,39 @@ the latest goal across the band under the boards, a column every tenth of a seco
 ```bash
 script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --demo countdown
 ```
+
+`--demo replay` plays a recording back, one frame a second. A recording is a JSON Lines file of reads
+from a live game, kept outside the repo; `--state` names it. The repo's synthetic one is in
+`spec/fixtures/replay_game.jsonl`:
+
+```bash
+script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --state spec/fixtures/replay_game.jsonl --serve 8080 --demo replay
+```
+
+The format and the frame rule are in [ADR 0019](adr/0019-replay-recordings-one-frame-a-second.md).
+
+A whole night goes through the main loop with `bin/replay_night`. Put one recording (`.jsonl`) or play-by-play
+payload (`.json`) per game in a directory outside the repo. `--panels` sets the boards, `--columns` the boards per
+row. Give lists (`--panels 2,4 --columns 1,2`) to try every layout that fits: `--png` writes one frame per layout at
+`--at` seconds, and `--serve` plays the layouts in turn, each for `--hold` seconds:
+
+```bash
+script/claude/run bin/replay_night ~/rpi-rgb-led-matrix/fonts/5x7.bdf ~/games/2026-11-25 --panels 6 --columns 3 --serve 8080
+script/claude/run bin/replay_night ~/rpi-rgb-led-matrix/fonts/5x7.bdf ~/games/2026-11-25 --panels 2,4 --columns 1,2 --png night.png --at 2400
+```
+
+Fetch a day's final games first (outside the repo; on a Mac set `SSL_CERT_FILE`), then replay them one
+play a second:
+
+```bash
+SSL_CERT_FILE=/etc/ssl/cert.pem script/claude/run bundle exec ruby bin/fetch_night 2026-11-25 ~/nhl-games/2026-11-25
+script/claude/run bin/replay_night ~/rpi-rgb-led-matrix/fonts/5x7.bdf ~/nhl-games/2026-11-25 --panels 4,8,12 --columns 4 --pace events --serve 8080
+```
+
+On the Pi, add `--hardware` (as root, with one `--panels` and one `--columns` that match the panels) to play the night
+on the real panels. It isn't run on a Pi yet.
+
+The night is in [ADR 0019 (night)](adr/0019-night-replay-through-the-main-loop.md).
 
 The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`
 needs librgbmatrix ([ADR 0003](adr/0003-pure-ruby-fake-canvas.md)).

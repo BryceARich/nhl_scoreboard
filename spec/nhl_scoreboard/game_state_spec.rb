@@ -22,6 +22,16 @@ RSpec.describe NhlScoreboard::GameState do
     expect(state.goals.first.scorer).to eq("Someone")
   end
 
+  it "writes a state as a Hash that reads back to the same state" do
+    state = described_class.from_h(data)
+    expect(described_class.from_h(JSON.parse(JSON.generate(state.as_hash)))).to eq(state)
+  end
+
+  it "writes an absent period type and an empty goal list" do
+    state = described_class.from_h(data.merge("period_type" => nil, "goals" => nil))
+    expect(state.as_hash).to include("period_type" => nil, "goals" => [])
+  end
+
   it "reads the demo file that ships with the repo" do
     state = described_class.load(File.expand_path("../../assets/demo_game.json", __dir__))
     expect(state.home_team.tri_code).to eq("COL")

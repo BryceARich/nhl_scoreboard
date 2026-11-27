@@ -37,6 +37,52 @@ RSpec.describe NhlScoreboard::GameSequence do
     end
   end
 
+  describe ".replay" do
+    let(:fixture) { File.expand_path("../fixtures/replay_game.jsonl", __dir__) }
+    let(:snapshots) { NhlScoreboard::GameRecording.read(fixture) }
+
+    def snap(at, clock)
+      NhlScoreboard::GameRecording::Snapshot.new(at, state.with(clock: clock))
+    end
+
+    it "shows one frame a second, each the newest read at or before that second" do
+      # Reads at 0, 1, 2.5 and 4: seconds 0 and 1 show their own read, second 2 still shows the read
+      # at 1, second 3 shows the read at 2.5, and second 4 the last.
+      frames = described_class.replay([snap(0, "12:00"), snap(1, "11:59"), snap(2.5, "11:57"), snap(4, "11:55")])
+      expect(frames.map(&:clock)).to eq(["12:00", "11:59", "11:59", "11:57", "11:55"])
+    end
+
+    it "holds the last state across a gap between reads" do
+      frames = described_class.replay([snap(0, "12:00"), snap(3, "11:57")])
+      expect(frames.map(&:clock)).to eq(["12:00", "12:00", "12:00", "11:57"])
+    end
+
+    it "plays the synthetic fixture, with its goal, at the right frames" do
+      frames = described_class.replay(snapshots).to_a
+      expect(frames.size).to eq(5)
+      expect(frames.map { |frame| frame.home_team.score }).to eq([0, 0, 0, 1, 1])
+    end
+
+    it "sorts reads given out of order by their time" do
+      frames = described_class.replay([snap(1, "11:59"), snap(0, "12:00")])
+      expect(frames.map(&:clock)).to eq(["12:00", "11:59"])
+    end
+
+    it "shows a single read as a single frame" do
+      expect(described_class.replay([snap(5, "12:00")]).to_a.map(&:clock)).to eq(["12:00"])
+    end
+
+    it "starts again from the first read each time it is walked" do
+      frames = described_class.replay([snap(0, "12:00"), snap(1, "11:59")])
+      expect(frames.first(2).map(&:clock)).to eq(["12:00", "11:59"])
+      expect(frames.first(2).map(&:clock)).to eq(["12:00", "11:59"])
+    end
+
+    it "raises when there are no snapshots" do
+      expect { described_class.replay([]) }.to raise_error(NhlScoreboard::Error, /at least one snapshot/)
+    end
+  end
+
   describe ".cycle_home_logos" do
     it "puts every current team in the home slot in turn, then starts again" do
       codes = described_class.cycle_home_logos(state).take(33).map { |frame| frame.home_team.tri_code }

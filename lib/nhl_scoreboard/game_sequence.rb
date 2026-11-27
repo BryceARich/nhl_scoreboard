@@ -46,6 +46,40 @@ module NhlScoreboard
       end
     end
 
+    # Plays a recording back, one state a second. Second 0 is the first snapshot's read time. Each
+    # second shows the newest snapshot read at or before it, so the frames match what the main loop
+    # drew at the time (ADR 0006). A gap between reads holds the last state until the next read.
+    #
+    # @param snapshots [Array<GameRecording::Snapshot>] the reads, in any order; they're sorted by time.
+    # @return [Enumerator<GameState>] one state per second, from the first read to the last. The
+    #   first frame is the first read's state.
+    # @raise [Error] if there are no snapshots.
+    # @example
+    #   NhlScoreboard::GameSequence.replay(NhlScoreboard::GameRecording.read("game.jsonl")).first(2)
+    def self.replay(snapshots)
+      raise Error, "a replay needs at least one snapshot in the recording" if snapshots.empty?
+
+      ordered = snapshots.each_with_index.sort_by { |snapshot, index| [snapshot.at, index] }.map(&:first)
+      start = ordered.first.at
+      seconds = (ordered.last.at - start).floor
+      Enumerator.new do |yielder|
+        newest = nil
+        reads = ordered.each
+        pending = nil
+        (0..seconds).each do |second|
+          now = start + second
+          loop do
+            pending ||= reads.next
+            break if pending.at > now
+
+            newest = pending.state
+            pending = nil
+          end
+          yielder << newest
+        end
+      end
+    end
+
     # @api private
     # @param clock [String, nil] a clock as `MM:SS`.
     # @return [Integer] the seconds on it.

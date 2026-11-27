@@ -1,0 +1,27 @@
+{
+  "id": 9000001,
+  "homeTeam": {"id": 1, "abbrev": "COL"},
+  "awayTeam": {"id": 2, "abbrev": "CHI"},
+  "rosterSpots": [
+    {"playerId": 8001, "firstName": {"default": "Synthetic"}, "lastName": {"default": "Scorer"}}
+  ],
+  "plays": [
+    {"eventId": 1, "typeDescKey": "faceoff", "periodDescriptor": {"number": 1, "periodType": "REG"},
+     "timeInPeriod": "00:00", "timeRemaining": "20:00", "situationCode": "1551", "details": {}},
+    {"eventId": 2, "typeDescKey": "goal", "periodDescriptor": {"number": 1, "periodType": "REG"},
+     "timeInPeriod": "02:00", "timeRemaining": "18:00", "situationCode": "1551",
+     "details": {"eventOwnerTeamId": 1, "scoringPlayerId": 8001, "homeScore": 1, "awayScore": 0}},
+    {"eventId": 3, "typeDescKey": "goal", "periodDescriptor": {"number": 1, "periodType": "REG"},
+     "timeInPeriod": "10:00", "timeRemaining": "10:00", "situationCode": "1551",
+     "details": {"eventOwnerTeamId": 2, "scoringPlayerId": 8002, "homeScore": 1, "awayScore": 1}},
+    {"eventId": 4, "typeDescKey": "period-end", "periodDescriptor": {"number": 1, "periodType": "REG"},
+     "timeInPeriod": "20:00", "timeRemaining": "00:00", "situationCode": "1551", "details": {}},
+    {"eventId": 5, "typeDescKey": "faceoff", "periodDescriptor": {"number": 2, "periodType": "REG"},
+     "timeInPeriod": "00:00", "timeRemaining": "20:00", "situationCode": "1551", "details": {}},
+    {"eventId": 6, "typeDescKey": "goal", "periodDescriptor": {"number": 2, "periodType": "REG"},
+     "timeInPeriod": "05:00", "timeRemaining": "15:00", "situationCode": "1551",
+     "details": {"eventOwnerTeamId": 1, "scoringPlayerId": 8001, "homeScore": 2, "awayScore": 1}},
+    {"eventId": 7, "typeDescKey": "game-end", "periodDescriptor": {"number": 2, "periodType": "REG"},
+     "timeInPeriod": "20:00", "timeRemaining": "00:00", "situationCode": "1551", "details": {}}
+  ]
+}

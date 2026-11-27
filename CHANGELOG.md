@@ -25,6 +25,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   same game. `MainLoop` reads the day's games through `sports_ingest` with the gem's poll interval,
   keeps the last games on the panels when a read fails, and `bin/scoreboard` runs it on the panels.
   `sports_ingest` is a git gem pinned to a commit (ADR 0007, both). Build order: C1-06.
+- Hardware replay (C1-09): `bin/replay_night --hardware` plays the night on the real panels, one layout sized to
+  them, as `bin/scoreboard` does. Not run on a Pi yet.
+- Real-game replay (C1-09): `bin/fetch_night DATE DIR` saves a day's final games as play-by-play JSON
+  through `sports_ingest`, outside the repo. `bin/replay_night --pace events` steps each game one play
+  at a time, `--step` seconds apart (default 1). `PlayByPlay` takes `pace:` and `step:`.
+- Night replay (C1-09): `NightReplay` plays several recorded games on one clock, each starting at its
+  recorded time and holding its final state after its last read. `bin/replay_night` runs a night
+  through the main loop on the fake panels. `--panels` (boards) and `--columns` (boards per row) take
+  lists, and each layout that fits is a variation. `PlayByPlay` takes a `start:` time, and
+  `GameState#live?` tells the game picker which games are under way. See ADR 0019 (night).
+- Backfill (C1-09): `PlayByPlay` turns a finished game's play-by-play into a state a second, with the
+  clock interpolated between plays, so a past game can be replayed. See ADR 0019 (backfill).
+- Replay (C1-09): `GameRecording` reads and writes a game's reads as JSON Lines, each state with
+  its read time; `GameSequence.replay` plays them one frame a second, each showing the newest read
+  at or before that second. `bin/fake_panels --state RECORDING --demo replay` plays one in the
+  browser. `GameState#as_hash` writes a state back out. See ADR 0019. The recorder doesn't yet read
+  from `sports_ingest`; that waits on the gem decision in #19.
 - Scoreboard layout (C1-04): `ScoreboardLayout` draws the left 64 columns from a game's live
   state, with the home and away logos, the period, the clock and the score at the old
   `led_scoreboard.py` positions. It reads the game by its methods, so no new gem is needed; see ADR

@@ -16,6 +16,10 @@
 #   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --state my_game.json --serve 8080
 #   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --demo countdown
 #   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --demo home-logos
+#   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --state game.jsonl --serve 8080 --demo replay
+#
+# --demo replay plays a recording (--state, a JSON Lines file of reads from a live game) back, one
+# second per frame. The recording is never committed; see docs/RESUME.md.
 
 require "optparse"
 require_relative "../lib/nhl_scoreboard"
@@ -28,7 +32,9 @@ DEMOS = {
   "home-logos" => NhlScoreboard::GameSequence.method(:cycle_home_logos)
 }.freeze
 # The ticker demo scrolls the latest goal instead (see the serve block), so it isn't in DEMOS.
-DEMO_NAMES = (DEMOS.keys + ["ticker"]).freeze
+# Replay takes a recording, not a state, so it's kept apart from DEMOS too.
+REPLAY = "replay"
+DEMO_NAMES = (DEMOS.keys + ["ticker", REPLAY]).freeze
 
 options = {rows: 32, cols: 32, chain: 4, frame: "hello"}
 parser = OptionParser.new do |opts|
@@ -39,7 +45,7 @@ parser = OptionParser.new do |opts|
   opts.on("--png FILE", "also write the frame as a PNG") { |file| options[:png] = file }
   opts.on("--scale N", Integer, "PNG pixel size, e.g. 8 for big readable pixels (default 1)") { |n| options[:scale] = n }
   opts.on("--frame NAME", %w[hello scoreboard], "hello (default) or scoreboard, the game-state layout") { |name| options[:frame] = name }
-  opts.on("--state FILE", "game state as JSON for --frame scoreboard (default #{DEFAULT_STATE})") { |file| options[:state] = file }
+  opts.on("--state FILE", "game state as JSON for --frame scoreboard (default #{DEFAULT_STATE}); a recording for --demo replay") { |file| options[:state] = file }
   opts.on("--demo NAME", DEMO_NAMES, "play the state out in the browser: #{DEMO_NAMES.join(", ")} (needs --serve and --frame scoreboard)") { |name| options[:demo] = name }
   opts.on("--serve PORT", Integer, "show the frame in a browser at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
 end
@@ -53,6 +59,9 @@ end
 if options[:state] && options[:frame] != "scoreboard"
   abort "--state needs --frame scoreboard"
 end
+if options[:demo] == REPLAY && !options[:state]
+  abort "--demo replay needs --state RECORDING"
+end
 
 font = NhlScoreboard::BdfFont.load(font_path)
 settings = NhlScoreboard::MatrixSettings.new(rows: options[:rows], cols: options[:cols], chain_length: options[:chain])
@@ -60,7 +69,13 @@ matrix = NhlScoreboard::FakeMatrix.new(settings)
 
 if options[:frame] == "scoreboard"
   begin
-    state = NhlScoreboard::GameState.load(options[:state] || DEFAULT_STATE)
+    if options[:demo] == REPLAY
+      # The first read is the first frame; the thread below plays the rest.
+      replay = NhlScoreboard::GameSequence.replay(NhlScoreboard::GameRecording.read(options[:state]))
+      state = replay.first
+    else
+      state = NhlScoreboard::GameState.load(options[:state] || DEFAULT_STATE)
+    end
   rescue NhlScoreboard::Error, Errno::ENOENT => e
     abort e.message
   end
@@ -97,8 +112,13 @@ if options[:serve]
       end
     end
   elsif options[:demo]
-    # Each state in the demo is shown for one second. The thread runs until the process stops.
-    frames = DEMOS.fetch(options[:demo]).call(state)
+    # Each state in the demo is shown for one second. The thread runs until the process stops. A
+    # replay's first frame is already on screen, so its thread starts at the second one.
+    frames = if options[:demo] == REPLAY
+      replay.drop(1)
+    else
+      DEMOS.fetch(options[:demo]).call(state)
+    end
     Thread.new do
       frames.each do |frame|
         sleep 1
