@@ -11,7 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   every 0.1 s (`SCROLL_SECONDS`), the way `bin/fake_panels --demo ticker` does, so `bin/scoreboard` and
   `bin/replay_night` show the latest goal sliding across each row's band. Before, the step was never
   advanced, so the text stayed off the edge. Reads and rotation keep their own times (ADR 0025).
-  Build order: C1-10.
+  `FakeCanvas#to_png` now appends whole rows instead of bytes, so a frame at the browser's scale is
+  about ten times faster, with the same PNG bytes. Build order: C1-10.
 
 ### Added
 
