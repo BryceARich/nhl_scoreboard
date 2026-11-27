@@ -25,9 +25,10 @@ inputs mean.
   rotation or favourites is repeated.
 - **Games share one clock by their start times.** Recordings from `GameRecording` carry epoch times.
   Play-by-play payloads start at `startTimeUTC` (or a `start:` time), so the night lines up.
-- **`--panels` is the number of boards, `--columns` the boards per row.** Each board is one
-  64-column panel's width, as `BoardGrid` lays it out. `--variations` is how many of the night's games
-  to play, first by file name. I took "variations" to mean the games of one night, not separate runs.
+- **A variation is a board layout.** `--panels` is the number of boards (each a 64-column panel's
+  width) and `--columns` how many per row, as `BoardGrid` lays them out. Both take lists: every panel
+  count pairs with every column count that fits it, so `--panels 2,4 --columns 1,2` runs 2×1, 2×2 and
+  4×1, 4×2. The number of games is set by the day, not by the command.
 
 ## Alternatives considered
 
@@ -41,10 +42,12 @@ inputs mean.
 
 ## Consequences
 
-- The spec plays a three-game night through `MainLoop` for each board and column variation, with a
+- The spec plays a three-game night through `MainLoop` for each board and column layout, with a
   test clock. It checks the number of boards, that no game shows twice in one draw, and that every
   game gets a turn. It also draws each layout on a canvas sized by the grid.
 - The night starts at its earliest game, so the first game is on a board from second zero. A game
   that starts later joins the rotation when its first read arrives.
+- `--png` writes one frame per layout. `--serve` plays the layouts in turn, each for `--hold` seconds.
 - The night reads files, so it runs offline and never touches the NHL. The live recorder is still
   to come.
+- The layout pairing lives in `bin/replay_night`, so only the spec's own layout list is tested.

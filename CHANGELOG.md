@@ -27,8 +27,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `sports_ingest` is a git gem pinned to a commit (ADR 0007, both). Build order: C1-06.
 - Night replay (C1-09): `NightReplay` plays several recorded games on one clock, each starting at its
   recorded time and holding its final state after its last read. `bin/replay_night` runs a night
-  through the main loop on the fake panels, with `--panels` (boards), `--columns` (boards per row) and
-  `--variations` (how many of the night's games). `PlayByPlay` takes a `start:` time, and
+  through the main loop on the fake panels. `--panels` (boards) and `--columns` (boards per row) take
+  lists, and each layout that fits is a variation. `PlayByPlay` takes a `start:` time, and
   `GameState#live?` tells the game picker which games are under way. See ADR 0019 (night).
 - Backfill (C1-09): `PlayByPlay` turns a finished game's play-by-play into a state a second, with the
   clock interpolated between plays, so a past game can be replayed. See ADR 0019 (backfill).
