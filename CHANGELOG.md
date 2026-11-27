@@ -30,7 +30,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `--hold SECONDS` now limits it.
 - Replay start (C1-10): `bin/replay_night --from-period 2` starts the night when the favorite's game
   reaches that period (`NightReplay#seconds_into_period`). It needs `--serve` and a favorite.
-- Live fake panels (C1-11): `bin/fake_panels --live` runs the main loop on today's games from the NHL on the fake panels, in the browser at `--serve`. `LiveGames` turns each game into a state with its goals and scorers, so the display and goal ticker can draw them; `ServedDisplay` publishes each frame to the page.
+- Live fake panels (C1-11): `bin/fake_panels --live` (with `--panels` and `--columns`, as `replay_night`) runs the main loop on today's games from the NHL on the fake panels, in the browser at `--serve`. `LiveGames` turns each game into a state with its goals and scorers, so the display and goal ticker can draw them; `ServedDisplay` publishes each frame to the page.
 - Fix (C1-11): live games crashed the display (`GameScore` has no goals, which the goal ticker reads since C1-10). `LiveGames` adds them, for `bin/scoreboard` too. The poll rule uses the game's phase, since `PollInterval.for` takes only a `GameScore`.
 - Follow today's games (C1-11): `DayScores` asks `sports_ingest` for the games of the local
   calendar day on every read, so the loop rolls over at local midnight. `MainLoop` keeps a final

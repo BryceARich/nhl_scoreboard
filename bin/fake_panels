@@ -15,6 +15,7 @@
 # (ADR 0029). It needs the NHL reachable; on a Mac set SSL_CERT_FILE (docs/GAME_DATA.md).
 #
 #   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --live
+#   bin/fake_panels path/to/font.bdf --rows 64 --cols 64 --chain 4 --frame scoreboard --serve 8080 --live --panels 4 --columns 2 --favorite COL
 #   bin/fake_panels path/to/font.bdf
 #   bin/fake_panels path/to/font.bdf --png preview.png --scale 8
 #   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080
@@ -56,6 +57,8 @@ parser = OptionParser.new do |opts|
   opts.on("--live", "run the main loop on today's games from the NHL, in the browser (needs --serve and --frame scoreboard)") { options[:live] = true }
   opts.on("--favorite TRI", "with --live, the favorite team's code, such as COL (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
   opts.on("--dwell SECONDS", Float, "with --live, seconds each game holds its board (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
+  opts.on("--panels N", Integer, "with --live, boards on the panels, each 64 columns wide (default: a full grid of the panels)") { |n| options[:panels] = n }
+  opts.on("--columns N", Integer, "with --live, boards per row (default: all on one row); needs --panels") { |n| options[:columns] = n }
 end
 parser.parse!
 
@@ -74,6 +77,12 @@ end
 if options[:live] && !(options[:serve] && options[:frame] == "scoreboard" && !options[:demo] && !options[:state])
   abort "--live needs --serve and --frame scoreboard, and no --state or --demo"
 end
+if (options[:panels] || options[:columns]) && !options[:live]
+  abort "--panels and --columns need --live"
+end
+if options[:columns] && !options[:panels]
+  abort "--columns needs --panels"
+end
 
 font = NhlScoreboard::BdfFont.load(font_path)
 settings = NhlScoreboard::MatrixSettings.new(rows: options[:rows], cols: options[:cols], chain_length: options[:chain])
@@ -83,7 +92,16 @@ if options[:live]
   require "sports_ingest/nhl"
 
   blank = matrix.offscreen_canvas
-  grid = NhlScoreboard::BoardGrid.for_canvas(width: blank.width, height: blank.height)
+  grid = begin
+    if options[:panels]
+      NhlScoreboard::BoardGrid.new(boards: options[:panels], columns: options[:columns] || options[:panels])
+    else
+      NhlScoreboard::BoardGrid.for_canvas(width: blank.width, height: blank.height)
+    end
+  rescue ArgumentError => e
+    abort e.message
+  end
+  abort "a #{grid.width}x#{grid.height} grid doesn't fit the #{blank.width}x#{blank.height} panels" unless grid.width <= blank.width && grid.height <= blank.height
   server = NhlScoreboard::PreviewServer.new(port: options[:serve])
   display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load,
     ticker: NhlScoreboard::GoalTicker.new(font, favorite: options[:favorite]), grid: grid)
