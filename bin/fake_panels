@@ -1,30 +1,148 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Draws "hello" on the fake 128×32 canvas and shows it in the terminal, and optionally writes a
-# PNG. It needs no panels, librgbmatrix or root, so it runs on the Mac. docs/RESUME.md has the
-# command.
+# Draws a frame on the fake panels, the Mac stand-in for the real matrix. It needs no panels,
+# librgbmatrix or root. Without --serve it prints the frame in the terminal (and can write a PNG).
+# With --serve it shows the frame in a browser, and --countdown updates the clock every second.
+# docs/RESUME.md has the commands.
 #
 #   bin/fake_panels path/to/font.bdf
-#   bin/fake_panels path/to/font.bdf --png preview.png
+#   bin/fake_panels path/to/font.bdf --png preview.png --scale 8
+#   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080
+#   bin/fake_panels path/to/font.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --countdown 10
 
 require "optparse"
 require_relative "../lib/nhl_scoreboard"
 
-options = {}
-OptionParser.new do |parser|
-  parser.banner = "usage: bin/fake_panels path/to/font.bdf [--png FILE]"
-  parser.on("--png FILE", "also write the frame as a PNG") { |file| options[:png] = file }
-end.parse!
+# The old NHL_Apps/led_scoreboard.py layout: logos are 20×20 at (0, 2) and (44, 2), and the period,
+# clock and score sit at x=24 on baselines 6, 13 and 20 (clock 5 px left). Each logo slot takes its
+# logo when given (C1-03); an empty slot is a grey placeholder.
+#
+# @param matrix [NhlScoreboard::FakeMatrix] the matrix to draw on.
+# @param font [NhlScoreboard::BdfFont] the font for the text.
+# @param clock [String] the clock text to show.
+# @param left_logo [NhlScoreboard::PpmImage, nil] the logo for the left 20×20 slot.
+# @param right_logo [NhlScoreboard::PpmImage, nil] the logo for the right 20×20 slot.
+# @return [NhlScoreboard::FakeCanvas] the canvas now showing, which the matrix has swapped in.
+def draw_scoreboard(matrix, font, clock, left_logo: nil, right_logo: nil)
+  canvas = matrix.offscreen_canvas
+  canvas.fill(0, 0, 0)
+  [[0, left_logo], [44, right_logo]].each do |logo_x, logo|
+    if logo
+      logo.draw(canvas, logo_x, 2)
+      next
+    end
+    20.times do |dy|
+      20.times do |dx|
+        edge = dx.zero? || dy.zero? || dx == 19 || dy == 19
+        canvas.set_pixel(logo_x + dx, 2 + dy, *(edge ? [90, 90, 90] : [30, 30, 30]))
+      end
+    end
+  end
+  canvas.draw_text(font, 24, 6, 255, 255, 255, "1ST")
+  canvas.draw_text(font, 19, 13, 255, 255, 255, clock)
+  canvas.draw_text(font, 24, 20, 255, 255, 255, "10-0")
+  matrix.swap_on_vsync(canvas)
+  matrix.canvas
+end
 
-font_path = ARGV.fetch(0) { abort "usage: bin/fake_panels path/to/font.bdf [--png FILE]" }
+# Formats seconds as the clock does, `M:SS`.
+#
+# @param seconds [Integer] seconds remaining, 0 or more.
+# @return [String] for example "1:05".
+def clock_text(seconds)
+  format("%d:%02d", seconds / 60, seconds % 60)
+end
+
+options = {rows: 32, cols: 32, chain: 4, frame: "hello"}
+parser = OptionParser.new do |opts|
+  opts.banner = "usage: bin/fake_panels path/to/font.bdf [options]"
+  opts.on("--rows N", Integer, "rows per panel (default 32)") { |n| options[:rows] = n }
+  opts.on("--cols N", Integer, "columns per unit (default 32; 64 for a 64-wide panel)") { |n| options[:cols] = n }
+  opts.on("--chain N", Integer, "units daisy-chained (default 4: 4 x 32 = 128 wide)") { |n| options[:chain] = n }
+  opts.on("--png FILE", "also write the frame as a PNG") { |file| options[:png] = file }
+  opts.on("--scale N", Integer, "PNG pixel size, e.g. 8 for big readable pixels (default 1)") { |n| options[:scale] = n }
+  opts.on("--frame NAME", %w[hello scoreboard], "hello (default) or scoreboard, the old led_scoreboard.py layout") { |name| options[:frame] = name }
+  opts.on("--serve PORT", Integer, "show the frame in a browser at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
+  opts.on("--countdown SECONDS", Integer, "count the clock down from SECONDS, once a second (needs --serve and --frame scoreboard)") { |s| options[:countdown] = s }
+  opts.on("--logo NAME", "draw this team logo from assets/logos in the left slot, e.g. avalanche (needs --frame scoreboard)") { |name| options[:logo] = name }
+  opts.on("--cycle-logos", "show each team logo in the left slot for one second, in turn, until Ctrl-C (needs --serve and --frame scoreboard)") { options[:cycle] = true }
+end
+parser.parse!
+
+font_path = ARGV.fetch(0) { abort parser.banner }
+
+if options[:countdown] && !(options[:serve] && options[:frame] == "scoreboard")
+  abort "--countdown needs --serve and --frame scoreboard"
+end
+if options[:logo] && options[:frame] != "scoreboard"
+  abort "--logo needs --frame scoreboard"
+end
+if options[:cycle] && !(options[:serve] && options[:frame] == "scoreboard")
+  abort "--cycle-logos needs --serve and --frame scoreboard"
+end
+if options[:cycle] && (options[:countdown] || options[:logo])
+  abort "--cycle-logos can't be combined with --countdown or --logo"
+end
+
+left_logo = nil
+right_logo = nil
+logos = NhlScoreboard::LogoLibrary.load
+if options[:logo]
+  left_logo = logos.fetch(options[:logo]) { abort "no logo named #{options[:logo]}; try one of: #{logos.keys.join(", ")}" }
+end
+if options[:logo] || options[:cycle]
+  right_logo = logos.fetch("goldenknights") { abort "no goldenknights logo in assets/logos" }
+end
 
 font = NhlScoreboard::BdfFont.load(font_path)
-matrix = NhlScoreboard::FakeMatrix.new
-canvas = matrix.offscreen_canvas
-canvas.fill(0, 0, 0)
-canvas.draw_text(font, 10, (canvas.height - font.height) / 2 + font.baseline, 255, 255, 255, "hello")
-matrix.swap_on_vsync(canvas)
+settings = NhlScoreboard::MatrixSettings.new(rows: options[:rows], cols: options[:cols], chain_length: options[:chain])
+matrix = NhlScoreboard::FakeMatrix.new(settings)
 
-puts matrix.canvas.to_terminal
-File.binwrite(options[:png], matrix.canvas.to_png) if options[:png]
+if options[:frame] == "scoreboard"
+  first_clock = options[:countdown] ? clock_text(options[:countdown]) : "12:34"
+  canvas = draw_scoreboard(matrix, font, first_clock, left_logo: left_logo, right_logo: right_logo)
+else
+  canvas = matrix.offscreen_canvas
+  canvas.fill(0, 0, 0)
+  canvas.draw_text(font, 10, (canvas.height - font.height) / 2 + font.baseline, 255, 255, 255, "hello")
+  matrix.swap_on_vsync(canvas)
+  canvas = matrix.canvas
+end
+
+if options[:serve]
+  # The browser page redraws from the PNG, so it defaults to 7 pixels per LED to fit a screen.
+  server = NhlScoreboard::PreviewServer.new(port: options[:serve])
+  server.publish(canvas, scale: options[:scale] || 7)
+  listener = server.listen
+
+  if options[:cycle]
+    # Each logo stays for one second, then the next one; the thread runs until the process stops.
+    Thread.new do
+      loop do
+        logos.each do |_name, logo|
+          draw_scoreboard(matrix, font, "12:34", left_logo: logo, right_logo: right_logo)
+          server.publish(matrix.canvas, scale: options[:scale] || 7)
+          sleep 1
+        end
+      end
+    end
+  end
+
+  if options[:countdown]
+    # The server blocks, so the clock ticks on its own thread; each tick publishes a new frame.
+    Thread.new do
+      options[:countdown].downto(0) do |remaining|
+        draw_scoreboard(matrix, font, clock_text(remaining), left_logo: left_logo, right_logo: right_logo) if remaining < options[:countdown]
+        server.publish(matrix.canvas, scale: options[:scale] || 7)
+        sleep 1 unless remaining.zero?
+      end
+    end
+  end
+
+  puts "showing the frame at http://127.0.0.1:#{server.port} (Ctrl-C to stop)"
+  server.serve(listener)
+else
+  puts canvas.to_terminal
+  File.binwrite(options[:png], canvas.to_png(scale: options[:scale] || 1)) if options[:png]
+end

@@ -2,15 +2,15 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-26 (C1-02)._
+_Last updated: 2026-11-26 (C1-03)._
 
 ## Current status
 
 Milestone C1 Scoreboard: **C1-00** (scaffold) and **C1-08** (CI, `.github/workflows/ci.yml`) are
 done. **C1-01** (#2) adds the FFI binding and `bin/hello_panels`; its specs pass offline, and the
 panel check is waiting for the maintainer on the Pi. **C1-02** (#3) adds the fake canvas for the
-Mac; its specs pass, and `bin/fake_panels` is for a human to look at. Next, in order: **C1-03**
-logos (#4). CI runs the licensed-data guard and the specs and lint on every pull request
+Mac; its specs pass, and `bin/fake_panels` is for a human to look at. **C1-03** (#4) adds the
+logo loader; its 34 logos are pre-sized to 20×20 in `assets/logos/`. Next, in order: **C1-04**. CI runs the licensed-data guard and the specs and lint on every pull request
 and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
 for you, and `/spawn_unblocked` starts sessions for the ready ones.
@@ -52,11 +52,26 @@ C1-07 (#8) adds the Pi service. Until then, the panel test below is the end-to-e
 ### Fake canvas on the Mac
 
 `FakeMatrix` and `FakeCanvas` draw in memory with the same methods as the real ones, and show the
-frame in a terminal or as a PNG. No panels, librgbmatrix or root needed. Give it a BDF font from
+frame in a terminal, as a PNG, or in a browser page. No panels, librgbmatrix or root needed. Give it a BDF font from
 the repo above (the Mac copy works too):
 
 ```bash
 script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/7x13.bdf --png preview.png
+```
+
+For a live window, serve the frame and open it in a browser (Ctrl-C stops it):
+
+```bash
+script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080
+```
+
+Then open http://127.0.0.1:8080. Add `--countdown 10` to count the clock down once a second.
+
+Add `--logo avalanche` to draw a team logo in the left 20×20 slot (any name in `assets/logos/`
+works; `--logo` needs `--frame scoreboard`):
+
+```bash
+script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --logo avalanche --serve 8080
 ```
 
 The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`

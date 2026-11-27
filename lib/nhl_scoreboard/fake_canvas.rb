@@ -5,8 +5,9 @@ require_relative "png_encoder"
 
 module NhlScoreboard
   # A canvas kept in memory, with the same methods as {Canvas}, for the Mac. Layout code draws on
-  # it the same way it draws on the Pi. Show it with {#to_terminal} (true-colour ANSI blocks) or
-  # {#to_png}. It knows nothing about the hardware.
+  # it the same way it draws on the Pi. Show it with {#to_terminal} (one true-colour cell per LED),
+  # {#to_png} (a PNG, with a grid), or a {PreviewServer} page in a browser. It knows nothing about
+  # the hardware.
   #
   # Text uses a {BdfFont}, not a {Font}: {Font} needs librgbmatrix, which the Mac doesn't have.
   #
@@ -16,6 +17,9 @@ module NhlScoreboard
   #   canvas.set_pixel(10, 4, 255, 0, 0)
   #   puts canvas.to_terminal
   class FakeCanvas
+    # The dark grey between LED cells in a PNG with a grid (`to_png`), packed as 0xRRGGBB.
+    GRID_COLOR = 0x282828
+
     # @return [Integer] columns.
     attr_reader :width
     # @return [Integer] rows.
@@ -121,31 +125,49 @@ module NhlScoreboard
       [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]
     end
 
-    # Draws the canvas as terminal text. Each character cell is a half-block `▀`: its top half is
-    # the pixel in row 2n and its bottom half is row 2n+1, so 32 rows make 16 text lines. Needs a
-    # terminal with 24-bit colour.
+    # Draws the canvas as terminal text, one whole square-looking cell per LED: two spaces on the
+    # LED's background colour. There are no half-block characters, so no LED is split across two
+    # rows. A 64×32 canvas is 32 lines of 128 characters. Needs a terminal with 24-bit colour.
     #
     # @return [String] lines joined by newlines, with ANSI colour codes and a final reset.
     # @example
     #   puts NhlScoreboard::FakeCanvas.new(width: 2, height: 2).to_terminal
     def to_terminal
-      (0...height).step(2).map do |y|
+      (0...height).map do |y|
         (0...width).map do |x|
-          top = fetch(x, y)
-          bottom = fetch(x, y + 1) || 0
-          "\e[38;2;#{channels(top)}m\e[48;2;#{channels(bottom)}m▀"
+          "\e[48;2;#{channels(fetch(x, y))}m  "
         end.join + "\e[0m"
       end.join("\n")
     end
 
-    # Encodes the canvas as a PNG file.
+    # Encodes the canvas as a PNG file, one square cell per LED. Each LED becomes a `scale` × `scale`
+    # cell, so a 64×32 canvas at scale 10 is a 640×320 image. With `grid`, the cell's last row and
+    # column are a dark grid line, so every LED reads as its own box. The grid is on by default at
+    # scale 3 and up, since a 1-pixel line at scale 1 or 2 would hide the LEDs.
     #
+    # @param scale [Integer] cell size in the PNG, at least 1.
+    # @param grid [Boolean] draw a dark line between LED cells.
     # @return [String] the PNG bytes, in binary encoding.
+    # @raise [Error] if `scale` is below 1.
     # @example
-    #   File.binwrite("preview.png", canvas.to_png)
-    def to_png
-      rgb = @pixels.flat_map { |value| [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff] }
-      PngEncoder.encode(width, height, rgb.pack("C*"))
+    #   File.binwrite("preview.png", canvas.to_png(scale: 10))
+    def to_png(scale: 1, grid: scale >= 3)
+      raise Error, "scale must be at least 1, got #{scale}" if scale < 1
+
+      rgb = +"".b
+      height.times do |y|
+        scale.times do |cell_row|
+          width.times do |x|
+            value = @pixels[(y * width) + x]
+            scale.times do |cell_column|
+              line = grid && (cell_row == scale - 1 || cell_column == scale - 1)
+              color = line ? GRID_COLOR : value
+              rgb << ((color >> 16) & 0xff).chr << ((color >> 8) & 0xff).chr << (color & 0xff).chr
+            end
+          end
+        end
+      end
+      PngEncoder.encode(width * scale, height * scale, rgb)
     end
 
     private

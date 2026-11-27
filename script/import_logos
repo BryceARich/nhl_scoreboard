@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Pre-sizes the team logos to 20×20 and writes them to assets/logos/, which the scoreboard reads.
+# The source is the pixelated PPM logos from NHL_Apps (resources/tsn_pixelated_logos), which are
+# 128×128 here. Run it once when the logos change; the output is committed.
+#
+#   script/claude/run script/import_logos ../NHL_Apps/resources/tsn_pixelated_logos
+
+require "fileutils"
+require_relative "../lib/nhl_scoreboard"
+
+SIZE = 20
+
+source = ARGV.fetch(0) { abort "usage: script/import_logos SOURCE_DIR" }
+out = File.expand_path("../assets/logos", __dir__)
+FileUtils.mkdir_p(out)
+
+paths = Dir.glob(File.join(source, "*.ppm")).sort
+abort "no .ppm files in #{source}" if paths.empty?
+
+paths.each do |path|
+  image = NhlScoreboard::PpmImage.load(path).resize_box(SIZE, SIZE)
+  File.binwrite(File.join(out, File.basename(path)), image.to_ppm)
+end
+puts "wrote #{paths.size} logos at #{SIZE}x#{SIZE} to #{out}"
