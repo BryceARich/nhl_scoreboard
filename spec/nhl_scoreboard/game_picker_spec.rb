@@ -94,4 +94,59 @@ RSpec.describe NhlScoreboard::GamePicker do
     expect { described_class.new(dwell: 0) }.to raise_error(ArgumentError, /dwell/)
     expect { described_class.new(dwell: -1) }.to raise_error(ArgumentError, /dwell/)
   end
+
+  it "holds still with no more games than boards, favorite not playing" do
+    picker = described_class.new(dwell: 10)
+    games = [game("a", state: :live), game("b", state: :live)]
+    shown = (0..60).step(10).map { |t| names(picker.boards(games, now: t)) }
+    expect(shown.uniq).to eq([%w[a b]])
+  end
+
+  it "rotates three games across two boards, never the same game on both at once" do
+    picker = described_class.new(dwell: 10)
+    games = [game("a", state: :live), game("b", state: :live), game("c", state: :live)]
+    seen = (0..90).step(10).map { |t| names(picker.boards(games, now: t)) }
+    seen.each { |pair| expect(pair.uniq.size).to eq(2) }
+    expect(seen.flatten.uniq.sort).to eq(%w[a b c])
+  end
+
+  it "rotates through all games on the boards, with no two boards on the same game" do
+    picker = described_class.new(favorite: "COL", dwell: 10, board_count: 3)
+    games = [fav, game("a"), game("b"), game("c"), game("d")]
+    (0..80).step(10).each do |t|
+      shown = names(picker.boards(games, now: t))
+      expect(shown.size).to eq(3)
+      expect(shown.uniq.size).to eq(3)
+      expect(shown.first).to eq("fav")
+    end
+    seen = (0..80).step(10).flat_map { |t| names(picker.boards(games, now: t)) }
+    expect(seen.uniq.sort).to eq(%w[a b c d fav])
+  end
+
+  it "holds still with as many games as boards, favorite first" do
+    picker = described_class.new(favorite: "COL", dwell: 10, board_count: 3)
+    games = [game("a", state: :live), fav, game("b")]
+    shown = (0..60).step(10).map { |t| names(picker.boards(games, now: t)) }
+    expect(shown.uniq).to eq([%w[fav a b]])
+  end
+
+  it "works with one board: the favorite when it plays, else the rotation" do
+    favorite_only = described_class.new(favorite: "COL", dwell: 10, board_count: 1)
+    expect(names(favorite_only.boards([game("a"), fav], now: 0))).to eq(%w[fav])
+    rotating = described_class.new(dwell: 10, board_count: 1)
+    games = [game("a"), game("b")]
+    expect(names(rotating.boards(games, now: 0))).to eq(%w[a])
+    expect(names(rotating.boards(games, now: 10))).to eq(%w[b])
+  end
+
+  it "takes the board count from the matrix width" do
+    settings = NhlScoreboard::MatrixSettings.new(rows: 32, cols: 32, chain_length: 4)
+    expect(described_class.board_count_for(settings)).to eq(2)
+    expect(described_class.board_count_for(NhlScoreboard::MatrixSettings.new(rows: 32, cols: 64, chain_length: 3))).to eq(3)
+  end
+
+  it "rejects a board count that isn't a positive Integer" do
+    expect { described_class.new(board_count: 0) }.to raise_error(ArgumentError, /board_count/)
+    expect { described_class.new(board_count: 2.5) }.to raise_error(ArgumentError, /board_count/)
+  end
 end

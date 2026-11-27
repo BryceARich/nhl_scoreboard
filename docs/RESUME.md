@@ -52,7 +52,7 @@ bundle exec standardrb    # should be clean
 
 On the Pi, as root, with the panels wired and librgbmatrix built ([`HARDWARE.md`](HARDWARE.md)).
 It puts the favorite team's game on board 1 while it plays today, and rotates the other games through
-board 2, live ones first:
+the other boards, live ones first (the board count follows the matrix width, two today):
 
 ```bash
 sudo NHL_FAVORITE_TEAM=COL "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-matrix/fonts/5x7.bdf

@@ -1,22 +1,31 @@
 # frozen_string_literal: true
 
 module NhlScoreboard
-  # Chooses the games for the two boards (C1-06). The favorite team's game, while it's playing today,
-  # always takes board 1, pre-game too. Board 2 takes the other games in turn, each for +dwell+
-  # seconds, and prefers live ones: a non-live game only shows when no other game is live. With one
-  # game today, board 1 shows it and board 2 stays empty. With no favorite playing, board 1 takes
-  # the turn from the same rule, and board 2 takes the next game from the rest.
+  # Chooses the games for the boards (C1-06). The boards are the panel's 64-column units, so
+  # +board_count+ comes from the matrix (see {.board_count_for}). The favorite team's game, while
+  # it's playing today, always takes board 1, pre-game and final included. The other boards take
+  # other games in turn, each game holding its board for +dwell+ seconds, and live games come first.
+  #
+  # The rules, in order:
+  # - **Games at or below the board count:** nothing rotates. The favorite comes first, then live
+  #   games, then the rest, and the order holds until a game's state changes.
+  # - **More games than boards:** the boards show different games, never the same one twice. The
+  #   rotation takes the live games when there are enough for the free boards, else live games
+  #   first and then the rest.
   #
   # Games are duck-typed: anything that answers +live?+ and +home_team+ and +away_team+ (each with
   # +tri_code+), such as `SportsIngest::NHL::GameScore`. The picker keeps no game data, only the
   # time the rotation started, so a game list that changes between calls still rotates.
   #
   # @example
-  #   picker = NhlScoreboard::GamePicker.new(favorite: "COL", dwell: 10)
+  #   picker = NhlScoreboard::GamePicker.new(favorite: "COL", dwell: 10, board_count: 2)
   #   picker.boards(games, now: Process.clock_gettime(Process::CLOCK_MONOTONIC)) # => [board1, board2]
   class GamePicker
     # @return [Integer] seconds each game holds its board in the rotation.
     DEFAULT_DWELL = 10
+
+    # @return [Integer] the boards on a 128-column canvas (two 64-column units), the RESUME default.
+    DEFAULT_BOARDS = 2
 
     # @return [String, nil] the favorite team's tri-code, upcased, or nil for none.
     attr_reader :favorite
@@ -24,16 +33,32 @@ module NhlScoreboard
     # @return [Numeric] seconds each game holds its board in the rotation.
     attr_reader :dwell
 
+    # @return [Integer] how many games the panels show at once.
+    attr_reader :board_count
+
+    # The number of 64-column boards a matrix holds, from its settings.
+    #
+    # @param settings [MatrixSettings] the panel layout.
+    # @return [Integer] columns across the chain divided by the board width, at least 1.
+    # @example
+    #   NhlScoreboard::GamePicker.board_count_for(NhlScoreboard::MatrixSettings.new) # => 2
+    def self.board_count_for(settings)
+      [settings.cols * settings.chain_length / ScoreboardLayout::BOARD_WIDTH, 1].max
+    end
+
     # @param favorite [String, nil] the favorite team's tri-code, such as "COL"; nil for none.
     # @param dwell [Numeric] seconds each game holds its board in the rotation; must be positive.
-    # @raise [ArgumentError] if +dwell+ isn't positive.
+    # @param board_count [Integer] how many games the panels show at once; must be a positive Integer.
+    # @raise [ArgumentError] if +dwell+ isn't positive, or +board_count+ isn't a positive Integer.
     # @example
-    #   NhlScoreboard::GamePicker.new(favorite: "tor").favorite # => "TOR"
-    def initialize(favorite: nil, dwell: DEFAULT_DWELL)
+    #   NhlScoreboard::GamePicker.new(favorite: "tor", board_count: 3).favorite # => "TOR"
+    def initialize(favorite: nil, dwell: DEFAULT_DWELL, board_count: DEFAULT_BOARDS)
       raise ArgumentError, "dwell must be positive, got #{dwell.inspect}" unless dwell.is_a?(Numeric) && dwell.positive?
+      raise ArgumentError, "board_count must be a positive Integer, got #{board_count.inspect}" unless board_count.is_a?(Integer) && board_count.positive?
 
       @favorite = favorite&.upcase
       @dwell = dwell
+      @board_count = board_count
       @rotation_started_at = nil
     end
 
@@ -42,21 +67,21 @@ module NhlScoreboard
     # @param games [Array<#live?, #home_team, #away_team>] today's games.
     # @param now [Numeric] the current time in seconds, on one clock for every call (such as
     #   +Process.clock_gettime(Process::CLOCK_MONOTONIC)+).
-    # @return [Array<Object>] zero to two games: none when +games+ is empty, one when there is only
-    #   one game today, else two. Board 1 is the favorite's game if it's playing today.
+    # @return [Array<Object>] up to {#board_count} games, all different: none when +games+ is empty,
+    #   and every game, in a fixed order, when there are no more games than boards.
     # @example
     #   picker.boards([], now: 0) # => []
     def boards(games, now:)
       return [] if games.empty?
+      return ordered(games) if games.size <= board_count
 
       @rotation_started_at ||= now
       slot = ((now - @rotation_started_at) / dwell).floor
-
-      first = favorite_game(games) || rotate(preferred(games), slot)
-      rest = games.reject { |game| game.equal?(first) }
-      return [first] if rest.empty?
-
-      [first, rotate(preferred(rest), slot)]
+      fav = favorite_game(games)
+      free = fav ? board_count - 1 : board_count
+      pool = fav ? games.reject { |game| game.equal?(fav) } : games
+      shown = free.zero? ? [] : window(pool_for(pool, free), free, slot)
+      fav ? [fav, *shown] : shown
     end
 
     private
@@ -69,18 +94,41 @@ module NhlScoreboard
       games.find { |game| game.home_team.tri_code.upcase == favorite || game.away_team.tri_code.upcase == favorite }
     end
 
-    # @param games [Array<#live?>] games to choose from.
-    # @return [Array<Object>] the live games, or every game when none is live.
-    def preferred(games)
-      live = games.select(&:live?)
-      live.empty? ? games : live
+    # The fixed order for a day with no more games than boards: favorite, then live, then the rest.
+    #
+    # @param games [Array<#live?, #home_team, #away_team>] today's games.
+    # @return [Array<Object>] every game, in that order, keeping the input order within each group.
+    def ordered(games)
+      fav = favorite_game(games)
+      rest = fav ? games.reject { |game| game.equal?(fav) } : games
+      live, other = rest.partition(&:live?)
+      (fav ? [fav] : []) + live + other
     end
 
-    # @param games [Array<Object>] a non-empty list.
+    # The games the free boards rotate through: the live ones when there are enough for every free
+    # board, else all the live ones first and then the rest.
+    #
+    # @param pool [Array<#live?>] the games that aren't on the favorite's board.
+    # @param free [Integer] how many boards rotate.
+    # @return [Array<Object>] the rotation pool, live games first.
+    def pool_for(pool, free)
+      live = pool.select(&:live?)
+      return live if live.size >= free
+
+      rest = pool.reject { |game| live.any? { |l| l.equal?(game) } }
+      live + rest
+    end
+
+    # The games on the free boards at this rotation step. Each step moves the window on by one
+    # board's width, so every game gets a turn, and the window never holds the same game twice.
+    #
+    # @param pool [Array<Object>] the rotation pool, longer than +free+.
+    # @param free [Integer] how many boards rotate.
     # @param slot [Integer] the rotation step.
-    # @return [Object] the game at this step, cycling through the list.
-    def rotate(games, slot)
-      games[slot % games.size]
+    # @return [Array<Object>] +free+ different games.
+    def window(pool, free, slot)
+      start = (slot * free) % pool.size
+      Array.new(free) { |i| pool[(start + i) % pool.size] }
     end
   end
 end

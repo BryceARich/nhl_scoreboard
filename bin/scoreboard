@@ -23,12 +23,14 @@ parser.parse!
 font_path = ARGV.fetch(0) { abort parser.banner }
 font = NhlScoreboard::Font.load(font_path)
 begin
-  NhlScoreboard::Matrix.open do |matrix|
+  settings = NhlScoreboard::MatrixSettings.new
+  NhlScoreboard::Matrix.open(settings) do |matrix|
     display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load)
     loop_ = NhlScoreboard::MainLoop.new(
       source: -> { SportsIngest::NHL.scores },
       display: display,
-      picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell]),
+      picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell],
+        board_count: NhlScoreboard::GamePicker.board_count_for(settings)),
       poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for(game) }
     )
     loop_.run
