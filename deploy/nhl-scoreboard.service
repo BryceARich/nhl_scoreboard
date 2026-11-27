@@ -1,0 +1,25 @@
+# systemd unit for bin/scoreboard (C1-07, ADR 0008). script/pi/provision fills in the @...@
+# placeholders and copies it to /etc/systemd/system; don't edit the installed copy.
+[Unit]
+Description=NHL scoreboard on the LED panels
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+# The library needs GPIO access, so the service runs as root, as the README's run command does.
+User=root
+WorkingDirectory=@APP_DIR@
+# NHL_FAVORITE_TEAM is read from here by bin/scoreboard.
+EnvironmentFile=/etc/nhl-scoreboard.env
+ExecStart=@RUBY@ bin/scoreboard @FONT@
+# A crash or a failed start restarts the service, however often: the main loop already keeps the
+# last games on the panels through network drops (ADR 0007), so this only covers a dead process.
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+StandardOutput=append:/var/log/nhl-scoreboard/scoreboard.log
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target

@@ -28,3 +28,4 @@ didn't, and what follows.
 | [0019](0019-replay-recordings-one-frame-a-second.md) | Store a game recording as JSON Lines of timed states, and replay one frame a second | Proposed |
 | [0019](0019-night-replay-through-the-main-loop.md) | Play a night of recorded games through the main loop on one clock, with the boards and columns as inputs | Proposed |
 | [0019](0019-backfill-recordings-from-play-by-play.md) | Build a finished game's recording from its play-by-play, one read a second, in this repo | Proposed |
+| [0008](0008-systemd-service-and-provision-script.md) | Run the scoreboard as a systemd service, set up by one provision script | Proposed |
