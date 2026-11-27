@@ -25,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   same game. `MainLoop` reads the day's games through `sports_ingest` with the gem's poll interval,
   keeps the last games on the panels when a read fails, and `bin/scoreboard` runs it on the panels.
   `sports_ingest` is a git gem pinned to a commit (ADR 0007, both). Build order: C1-06.
+- Hardware replay (C1-09): `bin/replay_night --hardware` plays the night on the real panels, one layout sized to
+  them, as `bin/scoreboard` does. Not run on a Pi yet.
 - Real-game replay (C1-09): `bin/fetch_night DATE DIR` saves a day's final games as play-by-play JSON
   through `sports_ingest`, outside the repo. `bin/replay_night --pace events` steps each game one play
   at a time, `--step` seconds apart (default 1). `PlayByPlay` takes `pace:` and `step:`.

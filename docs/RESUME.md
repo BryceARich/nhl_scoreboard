@@ -128,6 +128,9 @@ SSL_CERT_FILE=/etc/ssl/cert.pem script/claude/run bundle exec ruby bin/fetch_nig
 script/claude/run bin/replay_night ~/rpi-rgb-led-matrix/fonts/5x7.bdf ~/nhl-games/2026-11-25 --panels 4,8,12 --columns 4 --pace events --serve 8080
 ```
 
+On the Pi, add `--hardware` (as root, with one `--panels` and one `--columns` that match the panels) to play the night
+on the real panels. It isn't run on a Pi yet.
+
 The night is in [ADR 0019 (night)](adr/0019-night-replay-through-the-main-loop.md).
 
 The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`
