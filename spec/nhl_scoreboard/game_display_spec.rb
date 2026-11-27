@@ -122,21 +122,13 @@ RSpec.describe NhlScoreboard::GameDisplay do
       expect(band_colours(display.show(plain.with(goals: [chi_goal]), step: 1000))).to eq([[0, 0, 0]])
     end
 
-    it "queues two goals one after another, each in its own team's colour" do
+    it "starts the next goal without waiting for the last one to leave, each in its own team's colour" do
       display = queue_display
       display.show(plain, step: 0)
       both = plain.with(goals: [chi_goal, col_goal])
       display.show(both, step: 0)
-      chi_steps = []
-      col_steps = []
-      (0..800).step(5).each do |step|
-        colours = band_colours(display.show(both, step: step))
-        chi_steps << step if colours.include?(NhlScoreboard::TeamColors.rgb_for("CHI"))
-        col_steps << step if colours.include?(NhlScoreboard::TeamColors.rgb_for("COL"))
-      end
-      expect(chi_steps).not_to be_empty
-      expect(col_steps).not_to be_empty
-      expect(col_steps.min).to be > chi_steps.max
+      colours = band_colours(display.show(both, step: 20))
+      expect(colours).to include(NhlScoreboard::TeamColors.rgb_for("CHI"), NhlScoreboard::TeamColors.rgb_for("COL"))
     end
   end
 

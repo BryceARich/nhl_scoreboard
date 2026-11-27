@@ -36,7 +36,7 @@ module NhlScoreboard
     # @param top [Integer] the default band's first row.
     # @param height [Integer] the default band's height, in rows; the text is centred in it.
     # @param favorite [String, nil] the favorite team's tri-code. A goal by that team reads
-    #   "{Team name} GOAL!!!"; nil or another team's goal reads "Goal (TRI) scorer clock Pn".
+    #   "{Team name} GOAL!!! scorer clock Pn"; nil or another team's goal reads "Goal (TRI) scorer clock Pn".
     # @return [GoalTicker]
     # @example
     #   NhlScoreboard::GoalTicker.new(NhlScoreboard::BdfFont.load("fonts/5x7.bdf"), favorite: "COL")
@@ -109,12 +109,12 @@ module NhlScoreboard
     # by the favorite team reads as a shout instead.
     #
     # @param goal [#tri_code, #scorer, #clock, #period] the goal.
-    # @return [String] for example "Goal (COL) MacKinnon 03:21 P2", or "Avalanche GOAL!!!" for the
+    # @return [String] for example "Goal (CHI) MacKinnon 03:21 P2", or "Avalanche GOAL!!! MacKinnon 03:21 P2" for the
     #   favorite.
     # @example
     #   ticker.text_for(goal) # => "Goal (COL) MacKinnon 03:21 P2"
     def text_for(goal)
-      return "#{TeamNames.name_for(goal.tri_code)} GOAL!!!" if favorite_goal?(goal)
+      return "#{TeamNames.name_for(goal.tri_code)} GOAL!!! #{goal.scorer} #{goal.clock} P#{goal.period}" if favorite_goal?(goal)
 
       "Goal (#{goal.tri_code}) #{goal.scorer} #{goal.clock} P#{goal.period}"
     end

@@ -69,7 +69,7 @@ RSpec.describe NhlScoreboard::GoalTicker do
 
   it "shouts the favorite team's goal by its team name" do
     favorite = described_class.new(font, favorite: "col")
-    expect(favorite.text_for(goal(tri_code: "COL", scorer: "MacKinnon"))).to eq("Avalanche GOAL!!!")
+    expect(favorite.text_for(goal(tri_code: "COL", scorer: "MacKinnon"))).to eq("Avalanche GOAL!!! MacKinnon 12:34 P1")
   end
 
   it "describes another team's goal normally when a favorite is set" do
