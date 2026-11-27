@@ -18,6 +18,9 @@ module NhlScoreboard
   # - **Scroll clock (C1-10):** the loop wakes every {SCROLL_SECONDS} and redraws, and the goal ticker
   #   moves one column per wake, so the text scrolls ten columns a second. Reads and rotation
   #   still follow their own times, not the wake-ups (ADR 0025).
+  # - **Delay (C1-12, ADR 0030):** with +delay+, the boards show each read {DelayedGames} holds back, so
+  #   a viewer whose TV feed is behind the game can line the scoreboard up with it. Polling still
+  #   follows the newest read.
   # - **Unattended:** a Ruby error in drawing is not rescued; the process exits and its service
   #   manager restarts it (C1-07).
   #
@@ -58,11 +61,14 @@ module NhlScoreboard
     #   nil when it needs no more reads.
     # @param clock [#call] returns the current time in seconds, monotonic.
     # @param logger [IO, #puts] where read failures are reported.
+    # @param delay [Numeric] seconds to hold each read back before the boards show it (C1-12). The
+    #   default 0 shows each read at once.
+    # @raise [ArgumentError] if +delay+ is negative.
     # @example
     #   NhlScoreboard::MainLoop.new(source: -> { [] }, display: display, picker: picker,
-    #     poll_interval: ->(_game) { 60 })
+    #     poll_interval: ->(_game) { 60 }, delay: 30)
     def initialize(source:, display:, picker:, poll_interval:,
-      clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }, logger: $stderr)
+      clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }, logger: $stderr, delay: 0)
       @source = source
       @display = display
       @picker = picker
@@ -70,6 +76,7 @@ module NhlScoreboard
       @clock = clock
       @logger = logger
       @games = []
+      @reads = DelayedGames.new(delay: delay)
       @finished_at = {}
       @next_read_at = nil
       @failures = 0
@@ -96,7 +103,9 @@ module NhlScoreboard
     def tick(now)
       @scroll_started_at ||= now
       read(now) if @next_read_at.nil? || now >= @next_read_at
-      display.show(picker.boards(on_boards(now), now: now), step: scroll_step(now))
+      shown = @reads.at(now) || []
+      remember_finals(shown, now)
+      display.show(picker.boards(on_boards(shown, now), now: now), step: scroll_step(now))
       SCROLL_SECONDS
     end
 
@@ -111,15 +120,14 @@ module NhlScoreboard
       ((now - @scroll_started_at) / SCROLL_SECONDS).round(6).floor
     end
 
-    # Reads the games and sets when the next read is due. A failure keeps the last good games. It also
-    # records when each final game was first seen final, and forgets games the read no longer lists,
-    # so a rematch on a later day starts its dwell afresh.
+    # Reads the games and sets when the next read is due. The read is kept for the boards (see
+    # {DelayedGames}), and the newest one sets the polling. A failure keeps the last good games.
     #
     # @param now [Numeric] the current time.
     # @return [void]
     def read(now)
       @games = Array(source.call)
-      @finished_at = @games.select(&:final?).to_h { |game| [key(game), @finished_at.fetch(key(game), now)] }
+      @reads.record(now, @games)
       @failures = 0
       @next_read_at = now + next_poll_seconds
     rescue => e
@@ -135,12 +143,23 @@ module NhlScoreboard
       waits.empty? ? IDLE_SECONDS : waits.min
     end
 
+    # Records when each final game was first shown final, and forgets games no longer shown, so a
+    # rematch on a later day starts its dwell afresh. With no delay this is the read's time, as before.
+    #
+    # @param shown [Array<Object>] the games the boards are showing, from the delayed read.
+    # @param now [Numeric] the current time.
+    # @return [void]
+    def remember_finals(shown, now)
+      @finished_at = shown.select(&:final?).to_h { |game| [key(game), @finished_at.fetch(key(game), now)] }
+    end
+
     # The games still in the rotation: a final game leaves once it has held its board for one dwell.
     #
+    # @param shown [Array<Object>] the games on the delayed read.
     # @param now [Numeric] the current time.
     # @return [Array<Object>] the games the picker may choose from.
-    def on_boards(now)
-      @games.reject { |game| game.final? && now - @finished_at.fetch(key(game)) >= picker.dwell }
+    def on_boards(shown, now)
+      shown.reject { |game| game.final? && now - @finished_at.fetch(key(game)) >= picker.dwell }
     end
 
     # A game's identity across reads: the two teams' tri-codes. A day never has the same pair twice,

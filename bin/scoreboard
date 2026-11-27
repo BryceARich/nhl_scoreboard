@@ -15,11 +15,12 @@ require "optparse"
 require "sports_ingest/nhl"
 require_relative "../lib/nhl_scoreboard"
 
-options = {favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
+options = {favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL, delay: 0}
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/scoreboard path/to/font.bdf [options]"
   opts.on("--favorite TRI", "favorite team's code, such as COL; its game takes the first board while it plays today (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
   opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
+  opts.on("--delay SECONDS", Float, "seconds to hold the boards back from the live feed, to line them up with a delayed TV broadcast (default 0)") { |s| options[:delay] = s }
   opts.on("--boards N", Integer, "how many boards (default: a full grid of the panels)") { |n| options[:boards] = n }
   opts.on("--columns N", Integer, "boards per row (default: all on one row)") { |n| options[:columns] = n }
 end
@@ -50,7 +51,8 @@ begin
       source: NhlScoreboard::DayScores.new(scores: ->(date) { live_games.call(SportsIngest::NHL.scores(date: date)) }),
       display: display,
       picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards),
-      poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for_phase(game.phase) }
+      poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for_phase(game.phase) },
+      delay: options[:delay]
     )
     loop_.run
   end

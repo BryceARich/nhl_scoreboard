@@ -248,4 +248,70 @@ RSpec.describe NhlScoreboard::MainLoop do
     catch(:done) { loop_.run(sleeper: sleeper) }
     expect(slept).to eq([tick_seconds] * 3)
   end
+
+  describe "with a delay (C1-12)" do
+    def build_delayed(delay:, source: self.source, poll: LoopFakes::POLL)
+      described_class.new(source: source, display: display, picker: picker, poll_interval: poll, logger: logger, delay: delay)
+    end
+
+    it "shows the boards nothing until the first read is delay seconds old" do
+      games.replace([game("live", state: :live)])
+      loop_ = build_delayed(delay: 30)
+      loop_.tick(0)
+      loop_.tick(29.9)
+      expect(display.shown.map { |boards| names_shown(boards) }).to eq([[], []])
+      loop_.tick(30)
+      expect(names_shown(display.shown.last)).to eq(%w[live])
+    end
+
+    it "shows a state at its collection time plus the delay, with its score, clock and goals together" do
+      live = game("live", state: :live, home_score: 0)
+      games.replace([live])
+      loop_ = build_delayed(delay: 30, poll: ->(_g) { 10 })
+      loop_.tick(0)
+      games.replace([game("live", state: :live, home_score: 1)])
+      loop_.tick(10)
+      loop_.tick(29)
+      expect(display.shown.last).to eq([])
+      loop_.tick(30)
+      expect(display.shown.last.map { |g| g.home_team.score }).to eq([0])
+      loop_.tick(40)
+      expect(display.shown.last.map { |g| g.home_team.score }).to eq([1])
+    end
+
+    it "still polls by the newest read, not the delayed one" do
+      games.replace([game("live", state: :live)])
+      loop_ = build_delayed(delay: 30)
+      loop_.tick(0)
+      loop_.tick(10)
+      expect(source_calls.size).to eq(2)
+    end
+
+    it "holds a final game for one dwell from when the delayed boards first show it final" do
+      games.replace([game("done", state: :final)])
+      loop_ = build_delayed(delay: 30)
+      loop_.tick(0)
+      loop_.tick(30)
+      expect(names_shown(display.shown.last)).to eq(%w[done])
+      loop_.tick(39)
+      expect(names_shown(display.shown.last)).to eq(%w[done])
+      loop_.tick(40)
+      expect(display.shown.last).to eq([])
+    end
+
+    it "keeps the last good read on the boards when a read fails under a delay" do
+      failing = false
+      flaky = -> do
+        source_calls << true
+        raise SocketError, "no route to host" if failing
+        [game("live", state: :live)]
+      end
+      loop_ = build_delayed(delay: 30, source: flaky)
+      loop_.tick(0)
+      failing = true
+      loop_.tick(10)
+      loop_.tick(30)
+      expect(names_shown(display.shown.last)).to eq(%w[live])
+    end
+  end
 end
