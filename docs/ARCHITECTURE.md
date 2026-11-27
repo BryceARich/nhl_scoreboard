@@ -27,8 +27,10 @@ flowchart LR
 
 ## Display
 
-The canvas is 128×32. The left 64 columns hold the logos, period, clock and score; the right
-64 hold the scrolling goal ticker. Panels and matrix options are in
+The canvas is 128×32 for two boards side by side (a grid is more). Each board is 64×32: its
+scoreboard (logos, period, clock and score) takes rows 0 to 23. The goal ticker is a band across the
+whole canvas in rows 24 to 31, so its text can slide from one board to the next
+([ADR 0006](adr/0006-ticker-band-below-the-boards.md)). Panels and matrix options are in
 [`RESUME.md`](RESUME.md#hardware-setup).
 
 ## What exists now
@@ -41,9 +43,9 @@ The canvas is 128×32. The left 64 columns hold the logos, period, clock and sco
 | `bin/setup` | Ruby, gems and hook |
 | `bin/hello_panels` | Draws "hello" on the panels (C1-01) |
 | `bin/fake_panels` | Draws "hello" or the scoreboard frame on the fake canvas: terminal, PNG, or a browser page with `--serve` (C1-02) |
-| `lib/nhl_scoreboard/scoreboard_layout.rb`, `team_logos.rb` | `ScoreboardLayout` draws the left 64 columns from a game's state by its methods ([ADR 0005](adr/0005-layout-reads-game-state-by-duck-type.md)); `TeamLogos` maps tri-codes to logos (C1-04) |
-| `lib/nhl_scoreboard/game_state.rb`, `game_display.rb`, `game_sequence.rb` | `GameState` (JSON in, same readers as `GameScore`), `GameDisplay` (shows any state on a matrix), `GameSequence` (demos that play a state out: `countdown`, `cycle_home_logos`) (C1-04) |
-| `lib/nhl_scoreboard/goal_ticker.rb`, `team_colors.rb` | `GoalTicker` scrolls the latest goal across the right 64 columns in the scoring team's colour, drawn before the layout clears its columns ([ADR 0006](adr/0006-ticker-clipped-by-draw-order.md)); `TeamColors` maps tri-codes to colours (C1-05) |
+| `lib/nhl_scoreboard/scoreboard_layout.rb`, `team_logos.rb` | `ScoreboardLayout` draws one 64-column board from a game's state by its methods ([ADR 0005](adr/0005-layout-reads-game-state-by-duck-type.md)); `TeamLogos` maps tri-codes to logos (C1-04) |
+| `lib/nhl_scoreboard/game_state.rb`, `game_display.rb`, `game_sequence.rb` | `GameState` (JSON in, same readers as `GameScore`), `GameDisplay` (shows one or more states on a matrix, one board each), `GameSequence` (demos that play a state out: `countdown`, `cycle_home_logos`) (C1-04) |
+| `lib/nhl_scoreboard/goal_ticker.rb`, `team_colors.rb` | `GoalTicker` scrolls the latest goal across a band under the boards, in the scoring team's colour ([ADR 0006](adr/0006-ticker-band-below-the-boards.md)); `TeamColors` maps tri-codes to colours (C1-05) |
 | `assets/logos/` | 34 team logos, 20×20 PPM, made by `script/import_logos` ([ADR 0004](adr/0004-ppm-logos-presized.md)) (C1-03) |
 | `lib/nhl_scoreboard/` | `Matrix`, `Canvas`, `Font`, `MatrixSettings` (C1-01); `native.rb` and `native/` are the only C binding ([ADR 0002](adr/0002-ffi-to-librgbmatrix.md)) |
 | `lib/nhl_scoreboard/` (fake) | `FakeMatrix`, `FakeCanvas`, `BdfFont`, `PngEncoder`, `PreviewServer`: pure Ruby, no C ([ADR 0003](adr/0003-pure-ruby-fake-canvas.md)) (C1-02) |

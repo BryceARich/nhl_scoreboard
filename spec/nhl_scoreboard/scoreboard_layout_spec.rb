@@ -53,11 +53,20 @@ RSpec.describe NhlScoreboard::ScoreboardLayout do
     paint(game).texts
   end
 
-  it "clears the left 64 columns to black, and leaves the right 64 to the ticker" do
+  it "clears its own 64 × 24 board to black, and leaves the ticker band alone" do
     canvas = paint(ScoreboardLayoutSpec.game)
     expect(canvas.fills).to be_empty
-    expect(canvas.pixels).to include([0, 0, 0, 0, 0], [63, 31, 0, 0, 0])
+    expect(canvas.pixels).to include([0, 0, 0, 0, 0], [63, 23, 0, 0, 0])
     expect(canvas.pixels.map(&:first).max).to be < 64
+    expect(canvas.pixels.map { |_, y, *| y }.max).to be < 24
+  end
+
+  it "draws a board at its x offset, and only in its own 64 columns" do
+    canvas = ScoreboardLayoutSpec::RecordingCanvas.new
+    layout.draw(canvas, ScoreboardLayoutSpec.game, x: 64)
+    expect(canvas.texts.first).to eq([88, 6, "1ST"])
+    expect(canvas.pixels.map(&:first).min).to be >= 64
+    expect(canvas.pixels.map(&:first).max).to be < 128
   end
 
   it "puts the period, clock and score at the old layout's positions, using the live state" do

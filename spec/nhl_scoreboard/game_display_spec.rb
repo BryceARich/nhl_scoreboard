@@ -29,7 +29,7 @@ RSpec.describe NhlScoreboard::GameDisplay do
     expect(shown.pixel(0, 2)).to eq(logos.fetch("goldenknights").pixel(0, 0))
   end
 
-  it "draws the goal ticker in the right 64 columns, under the logo layout" do
+  it "draws the goal ticker in the band under the boards" do
     ticker = NhlScoreboard::GoalTicker.new(font)
     goal = NhlScoreboard::GameState::Goal.new(tri_code: "CHI", period: 1, clock: "12:34", scorer: "ILL")
     wide = NhlScoreboard::FakeMatrix.new(NhlScoreboard::MatrixSettings.new(rows: 32, cols: 64, chain_length: 2))
@@ -40,6 +40,14 @@ RSpec.describe NhlScoreboard::GameDisplay do
     right = (64...128).flat_map { |x| (0...32).map { |y| shown.pixel(x, y) } }
     expect(right).to include(colour)
     expect(shown.pixel(0, 2)).to eq(logos.fetch("avalanche").pixel(0, 0))
+  end
+
+  it "lays a second game out on the second board, 64 columns to the right" do
+    wide = NhlScoreboard::FakeMatrix.new(NhlScoreboard::MatrixSettings.new(rows: 32, cols: 64, chain_length: 2))
+    two = described_class.new(wide, NhlScoreboard::ScoreboardLayout.new(font), logos)
+    shown = two.show([state(home: "COL", away: "CHI"), state(home: "VGK", away: "CHI")])
+    expect(shown.pixel(0, 2)).to eq(logos.fetch("avalanche").pixel(0, 0))
+    expect(shown.pixel(64, 2)).to eq(logos.fetch("goldenknights").pixel(0, 0))
   end
 
   it "draws a placeholder for a team code that has no logo" do

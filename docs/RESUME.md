@@ -12,7 +12,7 @@ panel check is waiting for the maintainer on the Pi. **C1-02** (#3) adds the fak
 Mac; its specs pass, and `bin/fake_panels` is for a human to look at. **C1-03** (#4) adds the
 logo loader; its 34 logos are pre-sized to 20×20 in `assets/logos/`. **C1-04** (#5) adds
 `ScoreboardLayout`, which draws the left 64 columns from a game's live state (ADR 0005); its specs
-pass, and `bin/fake_panels --frame scoreboard` is for a human to look at. **C1-05** (#6) adds the goal ticker on the right 64 columns, in the scoring team's colours (ADR 0006); its specs pass, and `--demo ticker` is for a human to look at. Next, in order: **C1-06**.
+pass, and `bin/fake_panels --frame scoreboard` is for a human to look at. **C1-05** (#6) adds the goal ticker, a band under the boards in rows 24 to 31 that scrolls the latest goal in the scoring team's colours across the whole grid (ADR 0006); its specs pass, and `--demo ticker` is for a human to look at. Next, in order: **C1-06**.
 CI runs the licensed-data guard and the specs and lint on every pull request and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
 for you, and `/spawn_unblocked` starts sessions for the ready ones.
@@ -77,7 +77,7 @@ script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 -
 
 Add `--demo countdown` to play the state out in the browser, one second per frame: the clock counts
 down to 00:00. `--demo home-logos` cycles the home team through every logo. `--demo ticker` scrolls
-the latest goal across the right 64 columns, a column every tenth of a second. All need `--serve` and
+the latest goal across the band under both boards, a column every tenth of a second. All need `--serve` and
 `--frame scoreboard`:
 
 ```bash
