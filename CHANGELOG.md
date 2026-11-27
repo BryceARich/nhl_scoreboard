@@ -7,6 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Board grid (C1-06): `BoardGrid` places boards on a grid of any size, with
+  `columns` to a row, and each row of boards gets its own goal ticker under it, sized to that row
+  (ADR 0007, which supersedes ADR 0006's band across the whole canvas). `ScoreboardLayout#draw`
+  takes `y:`, and `GoalTicker#draw` takes a band's rectangle. `bin/scoreboard --boards N --columns N`
+  lays out a grid other than the panels' full one. Build order: C1-06.
 - Goal ticker (C1-05): `GoalTicker` scrolls the latest goal across a band under the boards (rows
   24 to 31, the full canvas width) in the scoring team's colour (`TeamColors`, one primary colour
   per team), so the text can slide from one board to the next (ADR 0006). Each board is 64 × 24

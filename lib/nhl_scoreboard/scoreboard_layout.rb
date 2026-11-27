@@ -62,16 +62,17 @@ module NhlScoreboard
     # @param home_logo [PpmImage, nil] the home team's logo, drawn in the left slot.
     # @param away_logo [PpmImage, nil] the away team's logo, drawn in the right slot.
     # @param x [Integer] the board's left column on the canvas; 0 for the first board.
+    # @param y [Integer] the board's top row on the canvas; 0 for the first row of boards.
     # @return [nil]
     # @example
     #   layout.draw(canvas, game, home_logo: home, away_logo: nil, x: 64)
-    def draw(canvas, game, home_logo: nil, away_logo: nil, x: 0)
-      clear_board(canvas, x)
-      draw_logo(canvas, x + HOME_LOGO_X, home_logo)
-      draw_logo(canvas, x + AWAY_LOGO_X, away_logo)
-      canvas.draw_text(font, x + TEXT_X, ORDINAL_Y, *TEXT_COLOR, ordinal(game))
-      canvas.draw_text(font, x + CLOCK_X, CLOCK_Y, *TEXT_COLOR, clock_text(game))
-      canvas.draw_text(font, x + TEXT_X, SCORE_Y, *TEXT_COLOR, score_text(game))
+    def draw(canvas, game, home_logo: nil, away_logo: nil, x: 0, y: 0)
+      clear_board(canvas, x, y)
+      draw_logo(canvas, x + HOME_LOGO_X, y, home_logo)
+      draw_logo(canvas, x + AWAY_LOGO_X, y, away_logo)
+      canvas.draw_text(font, x + TEXT_X, y + ORDINAL_Y, *TEXT_COLOR, ordinal(game))
+      canvas.draw_text(font, x + CLOCK_X, y + CLOCK_Y, *TEXT_COLOR, clock_text(game))
+      canvas.draw_text(font, x + TEXT_X, y + SCORE_Y, *TEXT_COLOR, score_text(game))
       nil
     end
 
@@ -82,9 +83,9 @@ module NhlScoreboard
     # @param canvas [Canvas, FakeCanvas] the canvas to clear.
     # @param x [Integer] the board's left column.
     # @return [void]
-    def clear_board(canvas, x)
-      BOARD_HEIGHT.times do |y|
-        BOARD_WIDTH.times { |dx| canvas.set_pixel(x + dx, y, 0, 0, 0) }
+    def clear_board(canvas, x, y)
+      BOARD_HEIGHT.times do |dy|
+        BOARD_WIDTH.times { |dx| canvas.set_pixel(x + dx, y + dy, 0, 0, 0) }
       end
     end
 
@@ -143,13 +144,13 @@ module NhlScoreboard
     # @param x [Integer] the slot's left column on the canvas.
     # @param logo [PpmImage, nil] the logo, or nil for the placeholder.
     # @return [void]
-    def draw_logo(canvas, x, logo)
-      return logo.draw(canvas, x, LOGO_Y) if logo
+    def draw_logo(canvas, x, y, logo)
+      return logo.draw(canvas, x, y + LOGO_Y) if logo
 
       LOGO_SIZE.times do |dy|
         LOGO_SIZE.times do |dx|
           edge = dx.zero? || dy.zero? || dx == LOGO_SIZE - 1 || dy == LOGO_SIZE - 1
-          canvas.set_pixel(x + dx, LOGO_Y + dy, *(edge ? [90, 90, 90] : [30, 30, 30]))
+          canvas.set_pixel(x + dx, y + LOGO_Y + dy, *(edge ? [90, 90, 90] : [30, 30, 30]))
         end
       end
     end

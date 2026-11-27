@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module NhlScoreboard
-  # Chooses the games for the boards (C1-06). The boards are the panel's 64-column units, so
-  # +board_count+ comes from the matrix (see {.board_count_for}). The favorite team's game, while
+  # Chooses the games for the boards (C1-06). +board_count+ comes from the board grid (see
+  # {BoardGrid}). The favorite team's game, while
   # it's playing today, always takes board 1, pre-game and final included. The other boards take
   # other games in turn, each game holding its board for +dwell+ seconds, and live games come first.
   #
@@ -35,16 +35,6 @@ module NhlScoreboard
 
     # @return [Integer] how many games the panels show at once.
     attr_reader :board_count
-
-    # The number of 64-column boards a matrix holds, from its settings.
-    #
-    # @param settings [MatrixSettings] the panel layout.
-    # @return [Integer] columns across the chain divided by the board width, at least 1.
-    # @example
-    #   NhlScoreboard::GamePicker.board_count_for(NhlScoreboard::MatrixSettings.new) # => 2
-    def self.board_count_for(settings)
-      [settings.cols * settings.chain_length / ScoreboardLayout::BOARD_WIDTH, 1].max
-    end
 
     # @param favorite [String, nil] the favorite team's tri-code, such as "COL"; nil for none.
     # @param dwell [Numeric] seconds each game holds its board in the rotation; must be positive.

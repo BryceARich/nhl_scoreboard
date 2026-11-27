@@ -59,7 +59,8 @@ sudo NHL_FAVORITE_TEAM=COL "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-mat
 ```
 
 `--favorite TRI` does the same as `NHL_FAVORITE_TEAM`, and `--dwell SECONDS` sets how long each
-game holds its board (10 by default). It reads the NHL through `sports_ingest`, which the Pi
+game holds its board (10 by default). The boards default to a full grid of the panels (two today);
+`--boards N --columns N` lays out another grid, such as 7 boards in 4 columns, if it fits the panels. It reads the NHL through `sports_ingest`, which the Pi
 must reach over the network. C1-07 (#8) adds the Pi service that starts it on boot.
 
 ### Fake canvas on the Mac

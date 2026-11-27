@@ -1,6 +1,6 @@
 # 0006. Put the goal ticker in a band below the boards, across the whole canvas
 
-- **Status:** Proposed
+- **Status:** Superseded by [0007](0007-board-grid-and-row-tickers.md)
 - **Date:** 2026-11-26
 - **Issue:** #6
 

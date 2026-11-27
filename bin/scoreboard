@@ -1,9 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Runs the scoreboard on the panels, unattended (C1-06). It puts the favorite team's game on board 1 while it's playing today,
-# and rotates the other games through board 2, live ones first. Run it on the Pi as root, since the library needs GPIO
-# access; docs/RESUME.md has the setup.
+# Runs the scoreboard on the panels, unattended (C1-06). The favorite team's game takes board 1
+# while it plays today, and the other boards rotate the rest, live games first. Each row of boards
+# has its own goal ticker under it. The boards default to a full grid of the panels; --boards and
+# --columns lay out a different number, such as 7 boards in 4 columns. Run it on the Pi as root,
+# since the library needs GPIO access; docs/RESUME.md has the setup.
 #
 #   sudo "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-matrix/fonts/5x7.bdf --favorite COL
 #   sudo NHL_FAVORITE_TEAM=COL "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-matrix/fonts/5x7.bdf
@@ -16,21 +18,36 @@ options = {favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker:
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/scoreboard path/to/font.bdf [options]"
   opts.on("--favorite TRI", "favorite team's code, such as COL; its game takes board 1 while it plays today (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
-  opts.on("--dwell SECONDS", Float, "seconds each game holds the panels in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
+  opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
+  opts.on("--boards N", Integer, "how many boards (default: a full grid of the panels)") { |n| options[:boards] = n }
+  opts.on("--columns N", Integer, "boards per row (default: all on one row)") { |n| options[:columns] = n }
 end
 parser.parse!
 
 font_path = ARGV.fetch(0) { abort parser.banner }
+settings = NhlScoreboard::MatrixSettings.new
+canvas_width = settings.cols * settings.chain_length
+canvas_height = settings.rows
+grid = begin
+  if options[:boards]
+    NhlScoreboard::BoardGrid.new(boards: options[:boards], columns: options[:columns] || options[:boards])
+  else
+    NhlScoreboard::BoardGrid.for_canvas(width: canvas_width, height: canvas_height)
+  end
+rescue ArgumentError => e
+  abort e.message
+end
+abort "a #{grid.width}x#{grid.height} grid doesn't fit the #{canvas_width}x#{canvas_height} panels" unless grid.width <= canvas_width && grid.height <= canvas_height
+
 font = NhlScoreboard::Font.load(font_path)
 begin
-  settings = NhlScoreboard::MatrixSettings.new
   NhlScoreboard::Matrix.open(settings) do |matrix|
-    display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load)
+    display = NhlScoreboard::GameDisplay.new(matrix, NhlScoreboard::ScoreboardLayout.new(font), NhlScoreboard::LogoLibrary.load,
+      ticker: NhlScoreboard::GoalTicker.new(font), grid: grid)
     loop_ = NhlScoreboard::MainLoop.new(
       source: -> { SportsIngest::NHL.scores },
       display: display,
-      picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell],
-        board_count: NhlScoreboard::GamePicker.board_count_for(settings)),
+      picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards),
       poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for(game) }
     )
     loop_.run

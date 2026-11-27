@@ -139,12 +139,6 @@ RSpec.describe NhlScoreboard::GamePicker do
     expect(names(rotating.boards(games, now: 10))).to eq(%w[b])
   end
 
-  it "takes the board count from the matrix width" do
-    settings = NhlScoreboard::MatrixSettings.new(rows: 32, cols: 32, chain_length: 4)
-    expect(described_class.board_count_for(settings)).to eq(2)
-    expect(described_class.board_count_for(NhlScoreboard::MatrixSettings.new(rows: 32, cols: 64, chain_length: 3))).to eq(3)
-  end
-
   it "rejects a board count that isn't a positive Integer" do
     expect { described_class.new(board_count: 0) }.to raise_error(ArgumentError, /board_count/)
     expect { described_class.new(board_count: 2.5) }.to raise_error(ArgumentError, /board_count/)
