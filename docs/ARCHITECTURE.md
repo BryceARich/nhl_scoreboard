@@ -2,8 +2,8 @@
 
 How the scoreboard is put together. Decisions are in [`adr/`](adr/README.md).
 
-> **Status:** written in C1-00. C1-01 added the matrix layer and its `lib/` paths; the rest is still
-> plan. When code lands and differs, update this file in the same PR.
+> **Status:** written in C1-00. C1-01 added the matrix layer and its `lib/` paths, and C1-02 the
+> fake canvas for the Mac; the rest is still plan. When code lands and differs, update this file in the same PR.
 
 ## Data flow
 
@@ -40,7 +40,9 @@ The canvas is 128×32. The left 64 columns hold the logos, period, clock and sco
 | `spec/` | RSpec specs |
 | `bin/setup` | Ruby, gems and hook |
 | `bin/hello_panels` | Draws "hello" on the panels (C1-01) |
+| `bin/fake_panels` | Draws "hello" on the fake canvas for the terminal or a PNG (C1-02) |
 | `lib/nhl_scoreboard/` | `Matrix`, `Canvas`, `Font`, `MatrixSettings` (C1-01); `native.rb` and `native/` are the only C binding ([ADR 0002](adr/0002-ffi-to-librgbmatrix.md)) |
+| `lib/nhl_scoreboard/` (fake) | `FakeMatrix`, `FakeCanvas`, `BdfFont`, `PngEncoder`: pure Ruby, no C ([ADR 0003](adr/0003-pure-ruby-fake-canvas.md)) (C1-02) |
 | `.github/` | Issue and PR templates; `workflows/ci.yml` (licensed-data guard, specs and lint) |
 
 App paths are added here by the issues that create them.
