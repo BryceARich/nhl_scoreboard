@@ -80,7 +80,7 @@ def parse_list(text, name)
   end
 end
 
-options = {panels: [2], favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL}
+options = {panels: [2], favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL, delay: 0}
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/replay_night path/to/font.bdf RECORDINGS_DIR [options]"
   opts.on("--panels LIST", "boards on the panels, such as 2 or 2,4,6 (default 2)") { |s| options[:panels] = s }
@@ -89,6 +89,7 @@ parser = OptionParser.new do |opts|
   opts.on("--step SECONDS", Float, "with --pace events, the seconds between plays (default 1)") { |s| options[:step] = s }
   opts.on("--favorite TRI", "favorite team's code, such as COL; its game takes the first board while it plays (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
   opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
+  opts.on("--delay SECONDS", Float, "hold the boards back this many seconds, as bin/scoreboard --delay does (default 0)") { |s| options[:delay] = s }
   opts.on("--serve PORT", Integer, "play the layouts in a browser at real speed, at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
   opts.on("--hold SECONDS", Float, "with --serve, seconds each layout plays before the next (default: the whole night)") { |s| options[:hold] = s }
   opts.on("--hardware", "play on the real panels, one layout sized to them, as bin/scoreboard does (run as root on the Pi)") { options[:hardware] = true }
@@ -99,6 +100,7 @@ end
 parser.parse!
 
 font_path, directory = ARGV.fetch(0) { abort parser.banner }, ARGV.fetch(1) { abort parser.banner }
+abort "--delay can't be negative" if options[:delay].negative?
 abort "give --serve PORT, --png FILE or --hardware" unless options[:serve] || options[:png] || options[:hardware]
 abort "--hardware plays on the real panels; don't combine it with --serve or --png" if options[:hardware] && (options[:serve] || options[:png])
 abort "--at needs --png" if options[:at] && !options[:png]
@@ -170,7 +172,8 @@ if options[:hardware]
         display: display,
         picker: NhlScoreboard::GamePicker.new(favorite: options[:favorite], dwell: options[:dwell], board_count: grid.boards),
         poll_interval: ->(_game) { 1 },
-        clock: elapsed
+        clock: elapsed,
+        delay: options[:delay]
       ).run
     end
   ensure
@@ -199,7 +202,7 @@ if options[:png]
   base = options[:png].delete_suffix(".png")
   written = layouts.map do |panels, columns|
     display, picker = build_layout.call(panels, columns)
-    canvas = display.show(picker.boards(night.states_at(at), now: at))
+    canvas = display.show(picker.boards(night.states_at(at - options[:delay]), now: at))
     file = (layouts.size == 1) ? options[:png] : "#{base}-#{panels}x#{columns}.png"
     File.binwrite(file, canvas.to_png(scale: 1))
     "#{file} (#{panels} boards, #{columns} per row)"
@@ -225,7 +228,8 @@ else
           display: BrowserDisplay.new(display, server, scale),
           picker: picker,
           poll_interval: ->(_game) { 1 },
-          clock: night_time
+          clock: night_time,
+          delay: options[:delay]
         )
         hold = options[:hold] || [night.duration - offset, 1].max
         while real.call < hold

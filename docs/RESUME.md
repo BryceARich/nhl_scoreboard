@@ -2,7 +2,7 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-27 (C1-11)._
+_Last updated: 2026-11-27 (C1-12)._
 
 ## Current status
 
@@ -17,7 +17,9 @@ pass, and `bin/fake_panels --frame scoreboard` is for a human to look at. **C1-0
 offline; a run on the panels and through a full game are for the maintainer. **C1-11** (#29) makes the
 loop follow the local day's games: each read is today's games, a final game leaves the rotation after one
 dwell, and an empty day blanks the boards (ADR 0029). Its specs pass offline; a real day on the panels is
-for the maintainer. Next, in order: **C1-07**.
+for the maintainer. **C1-12** (#33) adds `--delay SECONDS` to `bin/scoreboard` and `bin/replay_night`, which holds the
+boards back from the feed (ADR 0030). Its specs pass offline; checking it against a live game on the panels is for the maintainer.
+Next, in order: **C1-07**.
 **C1-09** (#19) adds the replays: `GameRecording` reads a recording, `PlayByPlay` builds one from a finished game's
 play-by-play, `NightReplay` plays several games on one clock, and `bin/replay_night` runs a night through
 the main loop on the fake panels. Its specs pass on synthetic data. The gem is in the Gemfile (ADR 0007), but nothing in C1-09 fetches
@@ -68,7 +70,9 @@ sudo NHL_FAVORITE_TEAM=COL "$(mise which ruby)" bin/scoreboard ~/rpi-rgb-led-mat
 ```
 
 `--favorite TRI` does the same as `NHL_FAVORITE_TEAM`, and `--dwell SECONDS` sets how long each
-game holds its board (10 by default). The boards default to a full grid of the panels;
+game holds its board (10 by default). `--delay SECONDS` holds the boards back from the live feed (0 by
+default), to line them up with a TV broadcast that runs behind; the score, clock and goal ticker move
+together ([ADR 0030](adr/0030-delay-the-boards-in-the-main-loop.md)). The boards default to a full grid of the panels;
 `--boards N --columns N` lays out another grid, such as 7 boards in 4 columns, if it fits the panels. It reads the NHL through `sports_ingest`, which the Pi
 must reach over the network. C1-07 (#8) adds the Pi service that starts it on boot.
 
@@ -121,7 +125,7 @@ Today's live games go through the main loop on the fake panels with `--live`. It
 SSL_CERT_FILE=/etc/ssl/cert.pem script/claude/run bundle exec ruby bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --live
 ```
 
-Run it with `bundle exec ruby` so the gem loads. `--favorite` and `--dwell` work as they do for `bin/scoreboard`. `--panels N` sets the boards (each 64 columns wide) and `--columns N` the boards per row, as in `bin/replay_night`; the canvas has to be big enough (`--rows`, `--cols`, `--chain`), and the script says so if not. For 4 boards in 2 columns on four 64-wide panels, add `--rows 64 --cols 64 --chain 4 --panels 4 --columns 2`.
+Run it with `bundle exec ruby` so the gem loads. `--favorite`, `--dwell` and `--delay` work as they do for `bin/scoreboard`. `--panels N` sets the boards (each 64 columns wide) and `--columns N` the boards per row, as in `bin/replay_night`; the canvas has to be big enough (`--rows`, `--cols`, `--chain`), and the script says so if not. For 4 boards in 2 columns on four 64-wide panels, add `--rows 64 --cols 64 --chain 4 --panels 4 --columns 2`.
 
 A whole night goes through the main loop with `bin/replay_night`. Put one recording (`.jsonl`) or play-by-play
 payload (`.json`) per game in a directory outside the repo. `--panels` sets the boards, `--columns` the boards per

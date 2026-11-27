@@ -31,5 +31,8 @@ bundle exec rspec      # tests, offline
 bundle exec standardrb # lint
 ```
 
+To line the boards up with a TV broadcast that runs behind the live feed, `bin/scoreboard --delay SECONDS`
+holds them back by that many seconds (see [setup and running](docs/RESUME.md#running-the-app)).
+
 Work is tracked in [issues](https://github.com/BryceARich/nhl_scoreboard/issues) titled
 `[C1-yy]`, in build order.
