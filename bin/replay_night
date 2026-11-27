@@ -18,6 +18,8 @@
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 4,6 --columns 2,3 --serve 8080 --hold 60
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 12 --columns 4 --pace events --serve 8080
 #
+# The favorite team comes from --favorite or $NHL_FAVORITE_TEAM, as in bin/scoreboard.
+#
 # --pace events steps each game one play at a time, the way a feed hands plays over, so the whole
 # day plays in a few minutes; all games start together. --step sets the seconds between plays
 # (default 1), with --pace events only. The default, --pace game, runs at game-clock
@@ -56,14 +58,14 @@ def parse_list(text, name)
   end
 end
 
-options = {panels: [2], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL, hold: 60}
+options = {panels: [2], favorite: ENV["NHL_FAVORITE_TEAM"], dwell: NhlScoreboard::GamePicker::DEFAULT_DWELL, hold: 60}
 parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/replay_night path/to/font.bdf RECORDINGS_DIR [options]"
   opts.on("--panels LIST", "boards on the panels, such as 2 or 2,4,6 (default 2)") { |s| options[:panels] = s }
   opts.on("--columns LIST", "boards per row, such as 1 or 1,2,3 (default: all on one row)") { |s| options[:columns] = s }
   opts.on("--pace NAME", %w[game events], "game (default: game-clock speed from each start time) or events (one play a second)") { |name| options[:pace] = name.to_sym }
   opts.on("--step SECONDS", Float, "with --pace events, the seconds between plays (default 1)") { |s| options[:step] = s }
-  opts.on("--favorite TRI", "favorite team's code; its game takes the first board while it plays") { |tri| options[:favorite] = tri }
+  opts.on("--favorite TRI", "favorite team's code, such as COL; its game takes the first board while it plays (default $NHL_FAVORITE_TEAM)") { |tri| options[:favorite] = tri }
   opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
   opts.on("--serve PORT", Integer, "play the layouts in a browser at real speed, at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
   opts.on("--hold SECONDS", Float, "with --serve, seconds each layout plays before the next (default 60)") { |s| options[:hold] = s }
