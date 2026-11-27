@@ -74,6 +74,18 @@ RSpec.describe NhlScoreboard::PlayByPlay do
       expect(replayed).to eq(states.first(3))
     end
 
+    it "gives one snapshot a play, counting from 0, with pace: :events" do
+      by_play = described_class.snapshots(payload, pace: :events)
+      expect(by_play.size).to eq(payload["plays"].size)
+      expect(by_play.map(&:at)).to eq((0...payload["plays"].size).map(&:to_f))
+      expect(by_play.last.state.phase).to eq(:final)
+      expect(by_play[1].state.home_team.score).to eq(1)
+    end
+
+    it "refuses a pace it doesn't know" do
+      expect { described_class.snapshots(payload, pace: :fast) }.to raise_error(NhlScoreboard::Error, /pace must be/)
+    end
+
     it "returns nothing for a game with no plays" do
       expect(described_class.snapshots(payload.merge("plays" => []))).to eq([])
     end

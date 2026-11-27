@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Saves one day's finished NHL games as play-by-play JSON, one file per game, for bin/replay_night.
+# The games come through sports_ingest, which reads the NHL. The directory must be outside this repo,
+# since game data never enters git (CLAUDE.md). On a Mac whose Ruby lacks CA certificates, set
+# SSL_CERT_FILE=/etc/ssl/cert.pem.
+#
+#   script/claude/run bin/fetch_night 2026-11-25 ~/nhl-games/2026-11-25
+
+require "fileutils"
+require "json"
+require "date"
+require "sports_ingest/nhl"
+
+date_text, directory = ARGV.fetch(0) { abort "usage: bin/fetch_night YYYY-MM-DD DIRECTORY" }, ARGV.fetch(1) { abort "usage: bin/fetch_night YYYY-MM-DD DIRECTORY" }
+date = begin
+  Date.iso8601(date_text)
+rescue Date::Error
+  abort "the date must be YYYY-MM-DD, got #{date_text.inspect}"
+end
+
+repo = File.expand_path("..", __dir__)
+target = File.expand_path(directory)
+abort "keep game data outside the repo: #{target}" if target == repo || target.start_with?("#{repo}/")
+
+FileUtils.mkdir_p(target)
+client = SportsIngest::NHL::Client.new
+finals = SportsIngest::NHL.scores(date: date.iso8601).select(&:final?)
+abort "no final games on #{date}" if finals.empty?
+
+finals.each do |score|
+  payload = client.get_json("gamecenter/#{score.id}/play-by-play")
+  File.write(File.join(target, "#{score.id}.json"), JSON.generate(payload))
+  puts "#{score.id} #{score.away_team.tri_code} #{score.away_team.score}, #{score.home_team.tri_code} #{score.home_team.score}"
+end
+puts "saved #{finals.size} games to #{target}"

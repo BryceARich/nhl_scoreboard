@@ -56,22 +56,33 @@ module NhlScoreboard
     # @raise [Error] if the payload isn't shaped as expected.
     # @example
     #   NhlScoreboard::PlayByPlay.snapshots(payload, start: 1_800_000_000).first.at # => 1800000000.0
-    def self.snapshots(payload, start: nil)
-      new(payload, start: start).snapshots
+    def self.snapshots(payload, start: nil, pace: :game, step: 1)
+      new(payload, start: start, pace: pace, step: step).snapshots
     end
 
     # @param payload [Hash] the parsed play-by-play JSON, as {.snapshots} takes it.
     # @param start [Numeric, nil] the game's start in seconds since the epoch, or nil for the payload's.
-    # @raise [Error] if the payload isn't shaped as expected.
-    def initialize(payload, start: nil)
+    # @param pace [Symbol] `:game` for one snapshot a second of game time, or `:events` for one per play.
+    # @param step [Numeric] with `pace: :events`, the seconds between plays (default 1); `at` is the
+    #   play's number times this.
+    # @raise [Error] if the payload isn't shaped as expected, +pace+ isn't `:game` or `:events`, or
+    #   +step+ isn't positive.
+    def initialize(payload, start: nil, pace: :game, step: 1)
+      raise Error, "pace must be :game or :events, got #{pace.inspect}" unless %i[game events].include?(pace)
+      raise Error, "step must be positive, got #{step.inspect}" unless step.is_a?(Numeric) && step.positive?
+
       @payload = payload
+      @pace = pace
+      @step = step
       @start = start&.to_f || start_from_payload
       @events = build_events
     end
 
-    # @return [Array<GameRecording::Snapshot>] one snapshot a second; see {.snapshots}.
+    # @return [Array<GameRecording::Snapshot>] one snapshot a second, or one per play with +pace: :events+;
+    #   see {.snapshots}.
     def snapshots
       return [] if @events.empty?
+      return event_snapshots if @pace == :events
 
       last = @events.last.elapsed
       (@events.first.elapsed..last).map do |second|
@@ -82,7 +93,16 @@ module NhlScoreboard
 
     private
 
-    def state_at(second, index)
+    # One snapshot per play, at the play's number times the step, with the clock as the play left it.
+    # By default a play comes a second after the last, as the feed would hand them over.
+    def event_snapshots
+      @events.each_index.map do |index|
+        event = @events[index]
+        GameRecording::Snapshot.new(index * @step.to_f, state_at(event.elapsed, index, clock: event.remaining))
+      end
+    end
+
+    def state_at(second, index, clock: nil)
       event = @events[index]
       nxt = @events[index + 1]
       scores = last_score(second)
@@ -90,7 +110,7 @@ module NhlScoreboard
         phase: event.final ? :final : event.period_type,
         period: event.period,
         period_type: event.period_type,
-        clock: clock_at(second, event, nxt),
+        clock: clock ? format("%02d:%02d", *clock.divmod(60)) : clock_at(second, event, nxt),
         home_team: GameState::Team.new(tri_code: home_code, score: scores[0]),
         away_team: GameState::Team.new(tri_code: away_code, score: scores[1]),
         goals: goals_by(second)

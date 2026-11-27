@@ -16,6 +16,12 @@
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 2 --serve 8080
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 2,4,6 --columns 1,2,3 --png night.png --at 2400
 #   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 4,6 --columns 2,3 --serve 8080 --hold 60
+#   bin/replay_night path/to/font.bdf games/2026-11-25 --panels 12 --columns 4 --pace events --serve 8080
+#
+# --pace events steps each game one play at a time, the way a feed hands plays over, so the whole
+# day plays in a few minutes; all games start together. --step sets the seconds between plays
+# (default 1), with --pace events only. The default, --pace game, runs at game-clock
+# speed from each game's start time. --at counts plays with --pace events, and seconds otherwise.
 
 require "json"
 require "optparse"
@@ -55,6 +61,8 @@ parser = OptionParser.new do |opts|
   opts.banner = "usage: bin/replay_night path/to/font.bdf RECORDINGS_DIR [options]"
   opts.on("--panels LIST", "boards on the panels, such as 2 or 2,4,6 (default 2)") { |s| options[:panels] = s }
   opts.on("--columns LIST", "boards per row, such as 1 or 1,2,3 (default: all on one row)") { |s| options[:columns] = s }
+  opts.on("--pace NAME", %w[game events], "game (default: game-clock speed from each start time) or events (one play a second)") { |name| options[:pace] = name.to_sym }
+  opts.on("--step SECONDS", Float, "with --pace events, the seconds between plays (default 1)") { |s| options[:step] = s }
   opts.on("--favorite TRI", "favorite team's code; its game takes the first board while it plays") { |tri| options[:favorite] = tri }
   opts.on("--dwell SECONDS", Float, "seconds each game holds its board in the rotation (default #{NhlScoreboard::GamePicker::DEFAULT_DWELL})") { |s| options[:dwell] = s }
   opts.on("--serve PORT", Integer, "play the layouts in a browser at real speed, at http://127.0.0.1:PORT until Ctrl-C") { |port| options[:serve] = port }
@@ -68,6 +76,9 @@ font_path, directory = ARGV.fetch(0) { abort parser.banner }, ARGV.fetch(1) { ab
 abort "give --serve PORT or --png FILE" unless options[:serve] || options[:png]
 abort "--at needs --png" if options[:at] && !options[:png]
 abort "--hold needs --serve" if options[:hold] != 60 && !options[:serve]
+pace = options[:pace] || :game
+abort "--step needs --pace events" if options[:step] && pace != :events
+step = options[:step] || 1
 
 layouts = begin
   panel_counts = parse_list(options[:panels], "--panels")
@@ -88,7 +99,7 @@ games = begin
     if path.end_with?(".jsonl")
       NhlScoreboard::GameRecording.read(path)
     else
-      NhlScoreboard::PlayByPlay.snapshots(JSON.parse(File.read(path)))
+      NhlScoreboard::PlayByPlay.snapshots(JSON.parse(File.read(path)), pace: pace, step: step)
     end
   end
 rescue NhlScoreboard::Error, JSON::ParserError, Errno::ENOENT => e

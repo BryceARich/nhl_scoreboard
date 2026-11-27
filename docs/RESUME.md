@@ -120,6 +120,14 @@ script/claude/run bin/replay_night ~/rpi-rgb-led-matrix/fonts/5x7.bdf ~/games/20
 script/claude/run bin/replay_night ~/rpi-rgb-led-matrix/fonts/5x7.bdf ~/games/2026-11-25 --panels 2,4 --columns 1,2 --png night.png --at 2400
 ```
 
+Fetch a day's final games first (outside the repo; on a Mac set `SSL_CERT_FILE`), then replay them one
+play a second:
+
+```bash
+SSL_CERT_FILE=/etc/ssl/cert.pem script/claude/run bundle exec ruby bin/fetch_night 2026-11-25 ~/nhl-games/2026-11-25
+script/claude/run bin/replay_night ~/rpi-rgb-led-matrix/fonts/5x7.bdf ~/nhl-games/2026-11-25 --panels 4,8,12 --columns 4 --pace events --serve 8080
+```
+
 The night is in [ADR 0019 (night)](adr/0019-night-replay-through-the-main-loop.md).
 
 The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`
