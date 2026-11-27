@@ -90,6 +90,24 @@ module NhlScoreboard
       self.class.new(**to_h.merge(changes))
     end
 
+    # The state as a Hash with string keys, in the shape {.from_h} reads. Writing it to JSON and
+    # reading it back gives an equal state.
+    #
+    # @return [Hash{String => Object}] the state, ready for `JSON.generate`.
+    # @example
+    #   NhlScoreboard::GameState.from_h(state.as_hash) == state # => true
+    def as_hash
+      {
+        "phase" => phase.to_s,
+        "period" => period,
+        "period_type" => period_type&.to_s,
+        "clock" => clock,
+        "home_team" => team_hash(home_team),
+        "away_team" => team_hash(away_team),
+        "goals" => goals.map { |goal| goal_hash(goal) }
+      }
+    end
+
     # @api private
     # @param value [String] the JSON value.
     # @param allowed [Array<Symbol>] the symbols it can be.
@@ -118,6 +136,21 @@ module NhlScoreboard
         clock: data.fetch("clock"), scorer: data.fetch("scorer"))
     end
 
+    # @api private
+    # @param team [Team] one team.
+    # @return [Hash{String => Object}]
+    def team_hash(team)
+      {"tri_code" => team.tri_code, "score" => team.score}
+    end
+
+    # @api private
+    # @param goal [Goal] one goal.
+    # @return [Hash{String => Object}]
+    def goal_hash(goal)
+      {"tri_code" => goal.tri_code, "period" => goal.period, "clock" => goal.clock, "scorer" => goal.scorer}
+    end
+
+    private :team_hash, :goal_hash
     private_class_method :coded, :team_from, :goal_from
   end
 end

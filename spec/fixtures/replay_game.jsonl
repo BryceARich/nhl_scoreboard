@@ -1,0 +1,4 @@
+{"at": 1000.0, "phase": "regulation", "period": 1, "period_type": "regulation", "clock": "12:00", "home_team": {"tri_code": "COL", "score": 0}, "away_team": {"tri_code": "CHI", "score": 0}, "goals": []}
+{"at": 1001.0, "phase": "regulation", "period": 1, "period_type": "regulation", "clock": "11:59", "home_team": {"tri_code": "COL", "score": 0}, "away_team": {"tri_code": "CHI", "score": 0}, "goals": []}
+{"at": 1002.5, "phase": "regulation", "period": 1, "period_type": "regulation", "clock": "11:57", "home_team": {"tri_code": "COL", "score": 1}, "away_team": {"tri_code": "CHI", "score": 0}, "goals": [{"tri_code": "COL", "period": 1, "clock": "11:57", "scorer": "Synthetic Scorer"}]}
+{"at": 1004.0, "phase": "regulation", "period": 1, "period_type": "regulation", "clock": "11:55", "home_team": {"tri_code": "COL", "score": 1}, "away_team": {"tri_code": "CHI", "score": 0}, "goals": [{"tri_code": "COL", "period": 1, "clock": "11:57", "scorer": "Synthetic Scorer"}]}

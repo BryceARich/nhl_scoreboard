@@ -25,6 +25,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   same game. `MainLoop` reads the day's games through `sports_ingest` with the gem's poll interval,
   keeps the last games on the panels when a read fails, and `bin/scoreboard` runs it on the panels.
   `sports_ingest` is a git gem pinned to a commit (ADR 0007, both). Build order: C1-06.
+- Backfill (C1-09): `PlayByPlay` turns a finished game's play-by-play into a state a second, with the
+  clock interpolated between plays, so a past game can be replayed. See ADR 0019 (backfill).
+- Replay (C1-09): `GameRecording` reads and writes a game's reads as JSON Lines, each state with
+  its read time; `GameSequence.replay` plays them one frame a second, each showing the newest read
+  at or before that second. `bin/fake_panels --state RECORDING --demo replay` plays one in the
+  browser. `GameState#as_hash` writes a state back out. See ADR 0019. The recorder doesn't yet read
+  from `sports_ingest`; that waits on the gem decision in #19.
 - Scoreboard layout (C1-04): `ScoreboardLayout` draws the left 64 columns from a game's live
   state, with the home and away logos, the period, the clock and the score at the old
   `led_scoreboard.py` positions. It reads the game by its methods, so no new gem is needed; see ADR
