@@ -67,13 +67,20 @@ For a live window, serve the frame and open it in a browser (Ctrl-C stops it):
 script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080
 ```
 
-Then open http://127.0.0.1:8080. Add `--countdown 10` to count the clock down once a second.
-
-Add `--logo avalanche` to draw a team logo in the left 20×20 slot (any name in `assets/logos/`
-works; `--logo` needs `--frame scoreboard`):
+Then open http://127.0.0.1:8080. The frame is the game state in `--state FILE` (JSON, default
+`assets/demo_game.json`; the teams' logos come from their tri-codes). Give a different state to draw
+it:
 
 ```bash
-script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --logo avalanche --serve 8080
+script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --state my_game.json --serve 8080
+```
+
+Add `--demo countdown` to play the state out in the browser, one second per frame: the clock counts
+down to 00:00. `--demo home-logos` cycles the home team through every logo. Both need `--serve` and
+`--frame scoreboard`:
+
+```bash
+script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/5x7.bdf --cols 64 --chain 1 --frame scoreboard --serve 8080 --demo countdown
 ```
 
 The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`

@@ -1,0 +1,11 @@
+{
+  "phase": "regulation",
+  "period": 1,
+  "period_type": "regulation",
+  "clock": "12:34",
+  "home_team": {"tri_code": "COL", "score": 3},
+  "away_team": {"tri_code": "CHI", "score": 2},
+  "goals": [
+    {"tri_code": "COL", "period": 1, "clock": "12:34", "scorer": "Demo scorer"}
+  ]
+}
