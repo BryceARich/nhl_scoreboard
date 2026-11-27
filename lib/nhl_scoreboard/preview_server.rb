@@ -77,7 +77,9 @@ module NhlScoreboard
       TCPServer.new(@host, @port).tap { |listener| @port = listener.addr[1] }
     end
 
-    # Accepts connections until interrupted, answering each one with {#handle}.
+    # Accepts connections until interrupted, answering each one with {#handle}. A client that
+    # drops its connection while the server is reading or writing (a broken pipe, a reset) is
+    # logged to standard error and closed; the server keeps accepting the next one.
     #
     # @param listener [TCPServer] the socket from {#listen}.
     # @return [nil]
@@ -88,6 +90,8 @@ module NhlScoreboard
         client = listener.accept
         begin
           handle(client)
+        rescue SystemCallError, IOError => e
+          warn "preview: dropped a client connection (#{e.class}: #{e.message})"
         ensure
           client.close
         end

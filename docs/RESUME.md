@@ -22,7 +22,7 @@ boards back from the feed (ADR 0030). Its specs pass offline; checking it agains
 **C1-13** (#35) reads game state `OVER` as final (the `sports_ingest` pin moves to `8b5d905`, which maps it;
 its spec uses a synthetic fixture). A finished game shows `FINAL` and leaves the rotation. Confirming game
 2026020403 on the panels is for the maintainer. A preview-server crash on a dropped browser connection is
-tracked in #36 (C1-14).
+fixed in #36 (C1-14): the preview logs the dropped client and keeps serving.
 Next, in order: **C1-07**.
 **C1-09** (#19) adds the replays: `GameRecording` reads a recording, `PlayByPlay` builds one from a finished game's
 play-by-play, `NightReplay` plays several games on one clock, and `bin/replay_night` runs a night through

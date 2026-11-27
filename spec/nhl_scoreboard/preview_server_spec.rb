@@ -59,6 +59,35 @@ RSpec.describe NhlScoreboard::PreviewServer do
     expect(status_line(request("/nope"))).to eq("HTTP/1.1 404 Not Found")
   end
 
+  it "keeps serving after a client drops its connection mid-response" do
+    # The first client's socket breaks on the first write, as when a browser closes the page while a
+    # frame is going out. The second client must still get a whole response. The fake listener
+    # raises StopIteration when it runs out of clients, which `Kernel#loop` treats as the end.
+    dropped = Struct.new(:input) do
+      def gets = input.gets
+
+      def write(_text) = raise(Errno::EPIPE)
+
+      def close = nil
+    end.new(StringIO.new("GET /frame.png HTTP/1.1\r\n\r\n"))
+
+    output = StringIO.new("".b)
+    served = Struct.new(:input, :output) do
+      def gets = input.gets
+
+      def write(text) = output.write(text)
+
+      def close = nil
+    end.new(StringIO.new("GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"), output)
+
+    clients = [dropped, served]
+    listener = Object.new
+    listener.define_singleton_method(:accept) { clients.shift || raise(StopIteration) }
+
+    expect { server.serve(listener) }.to output(/dropped a client connection \(Errno::EPIPE/).to_stderr
+    expect(status_line(output.string.b)).to eq("HTTP/1.1 200 OK")
+  end
+
   it "binds only to the loopback address by default" do
     expect(described_class.new.instance_variable_get(:@host)).to eq("127.0.0.1")
   end
