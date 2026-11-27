@@ -44,7 +44,7 @@ RSpec.describe "a real SportsIngest::NHL::GameScore", if: defined?(SportsIngest:
     live = score(state: :live, period: 1, period_type: :regulation, seconds_remaining: 600)
     shown = []
     shown_display = Object.new
-    shown_display.define_singleton_method(:show) { |game| shown << game }
+    shown_display.define_singleton_method(:show) { |game, step: 0| shown << game }
     loop_ = NhlScoreboard::MainLoop.new(
       source: -> { [live] },
       display: shown_display,
@@ -52,7 +52,7 @@ RSpec.describe "a real SportsIngest::NHL::GameScore", if: defined?(SportsIngest:
       poll_interval: ->(game) { SportsIngest::NHL::PollInterval.for(game) },
       logger: StringIO.new
     )
-    expect(loop_.tick(0)).to eq(10)
+    expect(loop_.tick(0)).to eq(NhlScoreboard::MainLoop::SCROLL_SECONDS)
     expect(shown).to eq([[live]])
   end
 end

@@ -2,7 +2,7 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-26 (C1-06)._
+_Last updated: 2026-11-27 (C1-10)._
 
 ## Current status
 
@@ -19,6 +19,8 @@ offline; a run on the panels and through a full game are for the maintainer. Nex
 play-by-play, `NightReplay` plays several games on one clock, and `bin/replay_night` runs a night through
 the main loop on the fake panels. Its specs pass on synthetic data. The gem is in the Gemfile (ADR 0007), but nothing in C1-09 fetches
 from the NHL yet: the recorder for live games is still to come. A run on a real night is for the maintainer.
+**C1-10** (#25) fixes the goal ticker, which never scrolled: the main loop now keeps a scroll clock and
+redraws ten times a second (ADR 0025). Its specs pass; a run on the panels is for the maintainer.
 CI runs the licensed-data guard and the specs and lint on every pull request and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
 for you, and `/spawn_unblocked` starts sessions for the ready ones.

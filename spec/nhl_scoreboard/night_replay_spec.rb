@@ -69,14 +69,16 @@ RSpec.describe NhlScoreboard::NightReplay do
     now = 0.0
     draws = []
     display = Object.new
-    display.define_singleton_method(:show) do |boards|
+    display.define_singleton_method(:show) do |boards, step: 0|
       draws << [now, boards]
       nil
     end
     loop = NhlScoreboard::MainLoop.new(source: -> { night.states_at(now) }, display: display, picker: picker,
       poll_interval: ->(_game) { 1 }, clock: -> { now }, logger: StringIO.new)
-    while now <= seconds
-      now += loop.tick(now)
+    # The loop wakes every SCROLL_SECONDS; time comes from a tick count, so the clock never drifts.
+    (0..(seconds / NhlScoreboard::MainLoop::SCROLL_SECONDS).round).each do |i|
+      now = i * NhlScoreboard::MainLoop::SCROLL_SECONDS
+      loop.tick(now)
     end
     draws
   end

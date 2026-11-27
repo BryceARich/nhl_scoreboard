@@ -39,9 +39,10 @@ class BrowserDisplay
   end
 
   # @param boards [Array<GameState>] the games on the boards.
+  # @param step [Integer] the goal ticker's scroll step, from the main loop.
   # @return [void]
-  def show(boards)
-    @server.publish(@display.show(boards), scale: @scale)
+  def show(boards, step: 0)
+    @server.publish(@display.show(boards, step: step), scale: @scale)
     nil
   end
 end
