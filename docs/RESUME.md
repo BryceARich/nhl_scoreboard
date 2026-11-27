@@ -10,7 +10,7 @@ Milestone C1 Scoreboard: **C1-00** (scaffold) and **C1-08** (CI, `.github/workfl
 done. **C1-01** (#2) adds the FFI binding and `bin/hello_panels`; its specs pass offline, and the
 panel check is waiting for the maintainer on the Pi. **C1-02** (#3) adds the fake canvas for the
 Mac; its specs pass, and `bin/fake_panels` is for a human to look at. **C1-03** (#4) adds the
-logo loader; its 33 logos are pre-sized to 20×20 in `assets/logos/`. Next, in order: **C1-04**. CI runs the licensed-data guard and the specs and lint on every pull request
+logo loader; its 34 logos are pre-sized to 20×20 in `assets/logos/`. Next, in order: **C1-04**. CI runs the licensed-data guard and the specs and lint on every pull request
 and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
 for you, and `/spawn_unblocked` starts sessions for the ready ones.
