@@ -55,6 +55,6 @@ and the goals of one game always come from the same read.
   the boards show what the feed had at the time, not the current score.
 - A failed read adds nothing to the buffer, so the last good read stays on the boards, as ADR 0007
   says. Under a delay the boards keep showing the old read until the next good one is due to show.
-- `bin/fake_panels --live` doesn't take `--delay` yet. It can, with the same `delay:` argument to
-  `MainLoop`, if the maintainer wants to preview a delay on the Mac.
+- `bin/fake_panels --live --delay SECONDS` previews the delay on the Mac, through the same `delay:`
+  argument to `MainLoop`.
 - Checking a delay against a live game on the panels is for the maintainer.
