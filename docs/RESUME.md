@@ -2,15 +2,15 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-26 (C1-02)._
+_Last updated: 2026-11-26 (C1-03)._
 
 ## Current status
 
 Milestone C1 Scoreboard: **C1-00** (scaffold) and **C1-08** (CI, `.github/workflows/ci.yml`) are
 done. **C1-01** (#2) adds the FFI binding and `bin/hello_panels`; its specs pass offline, and the
 panel check is waiting for the maintainer on the Pi. **C1-02** (#3) adds the fake canvas for the
-Mac; its specs pass, and `bin/fake_panels` is for a human to look at. Next, in order: **C1-03**
-logos (#4). CI runs the licensed-data guard and the specs and lint on every pull request
+Mac; its specs pass, and `bin/fake_panels` is for a human to look at. **C1-03** (#4) adds the
+logo loader; its 32 logos are pre-sized to 20×20 in `assets/logos/`. Next, in order: **C1-04**. CI runs the licensed-data guard and the specs and lint on every pull request
 and on `main`. Check each issue's
 "Blocked by", which can name `sports_ingest` issues. `script/claude/ready-issues --all` does that
 for you, and `/spawn_unblocked` starts sessions for the ready ones.
@@ -57,6 +57,12 @@ the repo above (the Mac copy works too):
 
 ```bash
 script/claude/run bin/fake_panels ~/rpi-rgb-led-matrix/fonts/7x13.bdf --png preview.png
+```
+
+A team logo needs no font. The Avalanche, for example (any name in `assets/logos/` works):
+
+```bash
+script/claude/run bin/fake_panels --logo avalanche --png preview.png
 ```
 
 The terminal view needs 24-bit colour. Text uses `BdfFont`, a pure-Ruby reader, because `Font`

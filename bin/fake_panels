@@ -1,29 +1,47 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Draws "hello" on the fake 128×32 canvas and shows it in the terminal, and optionally writes a
-# PNG. It needs no panels, librgbmatrix or root, so it runs on the Mac. docs/RESUME.md has the
-# command.
+# Draws text and/or a team logo on the fake 128×32 canvas and shows it in the terminal, and
+# optionally writes a PNG. It needs no panels, librgbmatrix or root, so it runs on the Mac.
+# docs/RESUME.md has the commands.
 #
-#   bin/fake_panels path/to/font.bdf
-#   bin/fake_panels path/to/font.bdf --png preview.png
+#   bin/fake_panels path/to/font.bdf [--png FILE]
+#   bin/fake_panels --logo avalanche [--png FILE]
+#   bin/fake_panels path/to/font.bdf --logo avalanche [--png FILE]
 
 require "optparse"
 require_relative "../lib/nhl_scoreboard"
 
 options = {}
 OptionParser.new do |parser|
-  parser.banner = "usage: bin/fake_panels path/to/font.bdf [--png FILE]"
+  parser.banner = "usage: bin/fake_panels [path/to/font.bdf] [--logo NAME] [--png FILE]"
+  parser.on("--logo NAME", "draw a team logo from assets/logos, e.g. avalanche") { |name| options[:logo] = name }
   parser.on("--png FILE", "also write the frame as a PNG") { |file| options[:png] = file }
 end.parse!
 
-font_path = ARGV.fetch(0) { abort "usage: bin/fake_panels path/to/font.bdf [--png FILE]" }
+font_path = ARGV.first
+logo = nil
+if options[:logo]
+  logos = NhlScoreboard::LogoLibrary.load
+  logo = logos.fetch(options[:logo]) do
+    abort "no logo named #{options[:logo]}; try one of: #{logos.keys.join(", ")}"
+  end
+end
+abort "usage: bin/fake_panels [path/to/font.bdf] [--logo NAME] [--png FILE]" unless font_path || logo
 
-font = NhlScoreboard::BdfFont.load(font_path)
 matrix = NhlScoreboard::FakeMatrix.new
 canvas = matrix.offscreen_canvas
 canvas.fill(0, 0, 0)
-canvas.draw_text(font, 10, (canvas.height - font.height) / 2 + font.baseline, 255, 255, 255, "hello")
+text_x = 10
+if logo
+  logo_y = (canvas.height - logo.height) / 2
+  logo.draw(canvas, 10, logo_y)
+  text_x = 10 + logo.width + 6
+end
+if font_path
+  font = NhlScoreboard::BdfFont.load(font_path)
+  canvas.draw_text(font, text_x, (canvas.height - font.height) / 2 + font.baseline, 255, 255, 255, "hello")
+end
 matrix.swap_on_vsync(canvas)
 
 puts matrix.canvas.to_terminal
