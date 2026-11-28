@@ -2,7 +2,7 @@
 
 Start here after time away. Update this file when status or setup changes.
 
-_Last updated: 2026-11-27 (C1-13)._
+_Last updated: 2026-11-27 (C1-15)._
 
 ## Current status
 
@@ -23,6 +23,8 @@ boards back from the feed (ADR 0030). Its specs pass offline; checking it agains
 its spec uses a synthetic fixture). A finished game shows `FINAL` and leaves the rotation. Confirming game
 2026020403 on the panels is for the maintainer. A preview-server crash on a dropped browser connection is
 fixed in #36 (C1-14): the preview logs the dropped client and keeps serving.
+**C1-15** (#39) keeps the favorite's final game on its board after a win and drops it at once after a loss
+(ADR 0039). Its specs pass offline; checking a real win and loss on the panels is for the maintainer.
 Next, in order: **C1-07**.
 **C1-09** (#19) adds the replays: `GameRecording` reads a recording, `PlayByPlay` builds one from a finished game's
 play-by-play, `NightReplay` plays several games on one clock, and `bin/replay_night` runs a night through

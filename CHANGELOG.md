@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Favorite's final game (C1-15): when the favorite team's game goes final, `MainLoop` keeps it on
+  its board after a win, with no refresh, and drops it at once after a loss. Other final games still
+  leave after one dwell (ADR 0029). `GamePicker` is unchanged; it already keeps the favorite on the
+  first board. Decision recorded in ADR 0039. Build order: C1-15.
+
 ### Fixed
 
 - Preview server survives a dropped connection (C1-14): `PreviewServer#serve` used to end on the

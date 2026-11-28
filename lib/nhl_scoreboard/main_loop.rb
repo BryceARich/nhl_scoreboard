@@ -10,7 +10,8 @@ module NhlScoreboard
   #   With no game left to poll, it rereads every {IDLE_SECONDS}, which catches the next day's games.
   # - **A day of games (ADR 0029):** each read is the day's games, so a game that starts mid-run joins
   #   the rotation and its score shows on the next read. A final game holds its board for one dwell
-  #   after it is first seen final, then leaves the rotation. With no game left to show, the boards
+  #   after it is first seen final, then leaves the rotation, except the favorite's: a win stays on its
+  #   board, and a loss leaves at once (C1-15, ADR 0039). With no game left to show, the boards
   #   go blank (the idle state) rather than keep the last frame.
   # - **Offline tolerance:** when a read fails, the loop keeps the last good games on the panels,
   #   retries after a backoff that doubles from {RETRY_SECONDS} up to {RETRY_MAX_SECONDS}, and
@@ -153,13 +154,40 @@ module NhlScoreboard
       @finished_at = shown.select(&:final?).to_h { |game| [key(game), @finished_at.fetch(key(game), now)] }
     end
 
-    # The games still in the rotation: a final game leaves once it has held its board for one dwell.
+    # The games still in the rotation. A final game leaves once it has held its board for one dwell,
+    # except the favorite's (C1-15): a favorite that wins stays on its board after the final, and one
+    # that loses leaves at once.
     #
     # @param shown [Array<Object>] the games on the delayed read.
     # @param now [Numeric] the current time.
     # @return [Array<Object>] the games the picker may choose from.
     def on_boards(shown, now)
-      shown.reject { |game| game.final? && now - @finished_at.fetch(key(game)) >= picker.dwell }
+      shown.reject { |game| leaves_boards?(game, now) }
+    end
+
+    # @param game [#final?, #home_team, #away_team] a game on the delayed read.
+    # @param now [Numeric] the current time.
+    # @return [Boolean] true when a final game is off the boards: the favorite's after a loss, and any
+    #   other after one dwell from when it was first seen final.
+    def leaves_boards?(game, now)
+      return false unless game.final?
+      return !favorite_won?(game) if favorite?(game)
+
+      now - @finished_at.fetch(key(game)) >= picker.dwell
+    end
+
+    # @param game [#home_team, #away_team] a game from the source.
+    # @return [Boolean] true when the favorite team plays in +game+.
+    def favorite?(game)
+      !picker.favorite.nil? && key(game).any? { |tri_code| tri_code.upcase == picker.favorite }
+    end
+
+    # @param game [#home_team, #away_team] the favorite's game, final.
+    # @return [Boolean] true when the favorite scored more goals than the other team.
+    def favorite_won?(game)
+      home, away = game.home_team, game.away_team
+      favorite_side, other_side = (home.tri_code.upcase == picker.favorite) ? [home, away] : [away, home]
+      favorite_side.score > other_side.score
     end
 
     # A game's identity across reads: the two teams' tri-codes. A day never has the same pair twice,

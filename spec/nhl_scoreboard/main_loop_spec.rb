@@ -188,6 +188,48 @@ RSpec.describe NhlScoreboard::MainLoop do
     expect(display.shown.last).to eq([])
   end
 
+  describe "the favorite's final game (C1-15)" do
+    let(:picker) { NhlScoreboard::GamePicker.new(favorite: "COL", dwell: 10, board_count: 2) }
+
+    # A game with both scores, for the favorite's side: COL at home or away, against BBB.
+    def scored(name, state:, home: ["COL", 0], away: ["BBB", 0])
+      LoopFakes::Game.new(name: name, state: state, home_team: LoopFakes::Team.new(*home), away_team: LoopFakes::Team.new(*away))
+    end
+
+    it "keeps the favorite on its board after a win, with no refresh" do
+      games.replace([scored("won", state: :final, home: ["COL", 4], away: ["BBB", 1]), game("pre", state: :pre)])
+      loop_ = build
+      loop_.tick(0)
+      loop_.tick(10)
+      loop_.tick(600)
+      expect(names_shown(display.shown.last)).to eq(%w[won pre])
+    end
+
+    it "keeps a favorite that won as the away side on its board" do
+      games.replace([scored("won", state: :final, home: ["BBB", 1], away: ["COL", 3]), game("pre", state: :pre)])
+      loop_ = build
+      loop_.tick(0)
+      loop_.tick(600)
+      expect(names_shown(display.shown.last)).to eq(%w[won pre])
+    end
+
+    it "drops the favorite at once after a loss, and keeps the other games on the rotation" do
+      games.replace([scored("lost", state: :final, home: ["COL", 1], away: ["BBB", 4]), game("pre", state: :pre)])
+      loop_ = build
+      loop_.tick(0)
+      expect(names_shown(display.shown.last)).to eq(%w[pre])
+    end
+
+    it "still drops a final game that isn't the favorite's after one dwell" do
+      games.replace([game("done", state: :final), scored("won", state: :final, home: ["COL", 4], away: ["BBB", 1])])
+      loop_ = build
+      loop_.tick(0)
+      expect(names_shown(display.shown.last)).to eq(%w[won done])
+      loop_.tick(10)
+      expect(names_shown(display.shown.last)).to eq(%w[won])
+    end
+  end
+
   it "scrolls the ticker one column per tick, from the first tick" do
     games.replace([game("live", state: :live)])
     loop_ = build
