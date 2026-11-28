@@ -31,3 +31,4 @@ didn't, and what follows.
 | [0025](0025-ticker-scrolls-on-the-loop-clock.md) | Scroll the goal ticker from the main loop's clock, redrawing ten times a second | Proposed |
 | [0029](0029-follow-todays-games.md) | Follow the local day's games in the main loop, and drop a final game after one dwell | Proposed |
 | [0030](0030-delay-the-boards-in-the-main-loop.md) | Hold the boards back by a delay, by buffering the reads in the main loop | Proposed |
+| [0039](0039-keep-the-favorites-final-board.md) | Keep the favorite's final game on its board after a win, and drop it at once after a loss | Proposed |
